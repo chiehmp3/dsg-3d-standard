@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSG 3D Standard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --dsg-green:#006150; --dsg-green-mid:#2E7E6A; --dsg-green-light:#74B096; --dsg-saffron:#F89B34;
+  --official:#006150; --internal:#2E7E6A; --warning:#b91c1c;
+  --bg-page:#f7faf8; --bg-sidebar:#eef4f1; --bg-card:#ffffff; --bg-input:#f1f5f3;
+  --border:#d8e3dd; --text:#0f172a; --text-dim:#475569; --text-muted:#94a3b8;
+  --card:var(--bg-card); --sidebar-w:240px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body { font-family:'Noto Sans TC',sans-serif; background:var(--bg-page); color:var(--text); display:flex; flex-direction:column; }
+header { height:56px; background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 20px; gap:14px; flex-shrink:0; position:relative; z-index:50; box-shadow:0 1px 3px rgba(0,97,80,0.06); }
+.logo { font-family:'DM Mono',monospace; font-size:12px; font-weight:500; letter-spacing:0.15em; color:#fff; background:var(--dsg-green); padding:4px 10px; border-radius:4px; }
+header h1 { font-size:18px; font-weight:500; color:var(--text); }
+.header-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.legend { display:flex; gap:14px; font-size:13px; color:var(--text-dim); }
+.legend-item { display:flex; align-items:center; gap:5px; }
+.legend-dot { width:8px; height:8px; border-radius:2px; }
+.btn-admin { font-size:12px; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text-dim); cursor:pointer; text-decoration:none; font-family:inherit; transition:all 0.15s; }
+.btn-admin:hover { color:var(--dsg-green); border-color:var(--dsg-green-light); }
+.layout { display:flex; flex:1; overflow:hidden; }
+aside { width:var(--sidebar-w); min-width:var(--sidebar-w); background:var(--bg-sidebar); border-right:1px solid var(--border); overflow-y:auto; padding:12px 0 20px; flex-shrink:0; }
+aside::-webkit-scrollbar { width:4px; }
+aside::-webkit-scrollbar-thumb { background:#c5d2cc; border-radius:2px; }
+.search-sidebar { padding:10px 12px 8px; }
+.search-sidebar input { width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:7px 10px 7px 30px; font-size:13px; color:var(--text); font-family:inherit; outline:none; }
+.search-sidebar input::placeholder { color:var(--text-muted); }
+.search-sidebar input:focus { border-color:var(--dsg-green-light); box-shadow:0 0 0 2px rgba(0,97,80,0.08); }
+.search-wrap-inner { position:relative; }
+.search-wrap-inner::before { content:'🔍'; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:13px; }
+.section-group { margin-bottom:4px; }
+.group-label { font-size:11px; font-weight:700; letter-spacing:0.1em; color:var(--text-dim); padding:10px 14px 4px; text-transform:uppercase; }
+.nav-item { display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:14px; color:#374151; cursor:pointer; border-left:2px solid transparent; transition:all 0.12s; user-select:none; }
+.nav-item:hover { color:var(--text); background:rgba(0,97,80,0.05); }
+.nav-item.active { color:var(--dsg-green); background:rgba(0,97,80,0.08); border-left-color:var(--dsg-green); font-weight:600; }
+.nav-icon { font-size:16px; }
+main { flex:1; overflow-y:auto; padding:28px 36px; }
+main::-webkit-scrollbar { width:5px; }
+main::-webkit-scrollbar-thumb { background:#c5d2cc; border-radius:3px; }
+.page { display:none; }
+.page.active { display:block; }
+.page-header { margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.page-title { font-size:26px; font-weight:700; color:#0f172a; margin-bottom:4px; }
+.page-desc { font-size:15px; color:var(--text-dim); line-height:1.6; }
+.card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px 20px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,97,80,0.05); }
+.card-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.card-title { font-size:17px; font-weight:700; color:#0f172a; }
+.badge { font-size:12px; font-weight:600; padding:2px 8px; border-radius:4px; letter-spacing:0.04em; flex-shrink:0; }
+.badge-official { background:rgba(0,97,80,0.08); color:var(--dsg-green); border:1px solid rgba(0,97,80,0.2); }
+.badge-internal { background:rgba(46,126,106,0.08); color:var(--dsg-green-mid); border:1px solid rgba(46,126,106,0.2); }
+.badge-warning { background:rgba(185,28,28,0.08); color:#b91c1c; border:1px solid rgba(185,28,28,0.2); }
+.card-content { font-size:15px; color:var(--text); line-height:1.75; white-space:pre-wrap; }
+.path-block { font-family:'DM Mono',monospace; font-size:12px; background:#f1f5f3; border:1px solid var(--border); border-radius:5px; padding:5px 10px; color:var(--dsg-green); word-break:break-all; margin:6px 0; display:block; }
+.stage-flow { display:flex; align-items:stretch; margin-bottom:8px; flex-wrap:wrap; gap:6px; }
+.stage-box { background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 16px; text-align:center; box-shadow:0 1px 2px rgba(0,97,80,0.04); transition:all 0.15s; min-width:92px; }
+.stage-box.clickable { cursor:pointer; }
+.stage-box.clickable:hover { border-color:var(--dsg-green-light); transform:translateY(-1px); }
+.stage-box.selected { border-color:var(--dsg-green); background:rgba(0,97,80,0.06); box-shadow:0 2px 8px rgba(0,97,80,0.12); }
+.stage-num { font-size:11px; color:var(--text-muted); margin-bottom:2px; font-family:'DM Mono',monospace; letter-spacing:0.08em; }
+.stage-name { font-size:14px; font-weight:700; color:#0f172a; }
+.stage-sub { font-size:11px; color:var(--text-dim); margin-top:2px; }
+.stage-arrow { color:var(--dsg-green-light); font-size:18px; display:flex; align-items:center; }
+.result-card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom:8px; box-shadow:0 1px 2px rgba(0,97,80,0.04); cursor:pointer; transition:all 0.15s; }
+.result-card:hover { border-color:var(--dsg-green-light); transform:translateX(2px); }
+.result-section { font-size:12px; color:var(--text-dim); margin-bottom:4px; }
+.result-title { font-size:16px; font-weight:600; color:#0f172a; margin-bottom:6px; }
+.result-body { font-size:14px; color:#374151; line-height:1.65; }
+mark { background:rgba(248,155,52,0.25); color:#92400e; border-radius:2px; padding:0 2px; }
+.loading { display:flex; align-items:center; justify-content:center; padding:60px 0; color:var(--text-dim); font-size:15px; gap:10px; }
+.spinner { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--dsg-green); border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.checklist { display:flex; flex-direction:column; gap:6px; }
+.check-group { font-size:12px; font-weight:700; letter-spacing:0.08em; color:var(--dsg-green); text-transform:uppercase; margin:14px 0 2px; padding-bottom:5px; border-bottom:2px solid rgba(0,97,80,0.12); }
+.check-group:first-child { margin-top:0; }
+.check-item { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; background:#fff; border:1px solid var(--border); border-radius:6px; font-size:14px; color:var(--text); line-height:1.5; cursor:pointer; transition:all 0.12s; box-shadow:0 1px 2px rgba(0,97,80,0.04); }
+.check-item:hover { border-color:var(--dsg-green-light); background:rgba(0,97,80,0.02); }
+.check-item input[type=checkbox] { margin-top:2px; accent-color:var(--dsg-green); flex-shrink:0; width:16px; height:16px; }
+.check-item.done { opacity:0.45; text-decoration:line-through; }
+.reset-btn { margin-top:12px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-dim); padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; }
+.reset-btn:hover { color:var(--dsg-green); border-color:var(--dsg-green-light); }
+.contact-group { margin-bottom:24px; }
+.contact-group-title { font-size:13px; font-weight:700; letter-spacing:0.1em; color:var(--dsg-green); text-transform:uppercase; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid rgba(0,97,80,0.12); }
+.contact-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; }
+.contact-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; transition:all 0.15s; }
+.contact-card:hover { border-color:var(--dsg-green-light); box-shadow:0 2px 8px rgba(0,97,80,0.08); }
+.contact-category { font-size:13px; color:var(--text-dim); margin-bottom:8px; font-weight:500; }
+.contact-row { display:flex; align-items:center; gap:8px; font-size:14px; margin:4px 0; }
+.contact-label { font-size:11px; color:var(--text-muted); min-width:32px; }
+.contact-name-zh { font-weight:600; color:var(--text); }
+.contact-name-en { background:rgba(0,97,80,0.08); color:var(--dsg-green); padding:2px 8px; border-radius:10px; font-size:12px; font-weight:500; }
+.contact-backup .contact-name-en { background:rgba(116,176,150,0.15); color:var(--dsg-green-mid); }
+.dept-head-card { background:linear-gradient(135deg, rgba(0,97,80,0.06), rgba(116,176,150,0.04)); border:1px solid rgba(0,97,80,0.2); }
+.copy-btn { flex-shrink:0; background:rgba(0,97,80,0.08); border:1px solid rgba(0,97,80,0.2); color:var(--dsg-green); padding:3px 10px; border-radius:4px; font-size:12px; cursor:pointer; font-family:inherit; white-space:nowrap; transition:all 0.12s; }
+.copy-btn:hover { background:rgba(0,97,80,0.15); }
+a { color:var(--dsg-green); }
+.empty { text-align:center; padding:40px 0; color:var(--text-dim); font-size:14px; }
+.placeholder-box { background:linear-gradient(135deg, rgba(0,97,80,0.04), rgba(116,176,150,0.03)); border:1px dashed rgba(0,97,80,0.25); border-radius:10px; padding:40px; text-align:center; color:var(--text-dim); font-size:15px; line-height:1.7; }
+
+/* ── Avatar Page ── */
+.gender-tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.gender-tab { padding:9px 22px; font-size:14px; font-weight:600; border-radius:8px; cursor:pointer; color:var(--text-dim); border:1px solid var(--border); background:var(--card); font-family:inherit; transition:all 0.15s; display:flex; align-items:center; gap:6px; }
+.gender-tab:hover { color:var(--text); border-color:var(--dsg-green-light); }
+.gender-tab.active { background:var(--dsg-green); color:#fff; border-color:var(--dsg-green); box-shadow:0 2px 6px rgba(0,97,80,0.18); }
+.gender-icon { font-size:16px; }
+
+.subgroup-tabs { display:flex; gap:4px; margin-bottom:18px; background:var(--bg-sidebar); padding:4px; border-radius:8px; width:fit-content; }
+.subgroup-tab { padding:6px 16px; font-size:13px; font-weight:500; border-radius:6px; cursor:pointer; color:var(--text-dim); border:none; background:none; font-family:inherit; transition:all 0.12s; }
+.subgroup-tab:hover { color:var(--text); }
+.subgroup-tab.active { background:#fff; color:var(--dsg-green); font-weight:600; box-shadow:0 1px 2px rgba(0,97,80,0.1); }
+
+.shared-avatar-box { background:linear-gradient(135deg, rgba(248,155,52,0.06), rgba(248,155,52,0.02)); border:1px solid rgba(248,155,52,0.25); border-radius:10px; padding:12px 16px; margin-bottom:14px; }
+.shared-avatar-label { font-size:11px; font-weight:700; letter-spacing:0.1em; color:var(--dsg-saffron); text-transform:uppercase; margin-bottom:6px; }
+
+.size-table { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,97,80,0.05); }
+.size-row { display:grid; grid-template-columns:80px 1fr auto auto; gap:14px; align-items:center; padding:12px 18px; border-bottom:1px solid var(--border); transition:background 0.12s; }
+.size-row.size-row-simple { grid-template-columns:160px 1fr; }
+.size-row:last-child { border-bottom:none; }
+.size-row:hover { background:rgba(0,97,80,0.02); }
+.size-row.base { background:linear-gradient(90deg, rgba(0,97,80,0.07), rgba(0,97,80,0.02)); border-left:3px solid var(--dsg-green); padding-left:15px; }
+.size-row.base:hover { background:linear-gradient(90deg, rgba(0,97,80,0.10), rgba(0,97,80,0.04)); }
+.size-row.rare { opacity:0.55; }
+.size-row.rare:hover { opacity:1; }
+
+.folder-bar { background:linear-gradient(135deg, rgba(0,97,80,0.08), rgba(116,176,150,0.04)); border:1px solid rgba(0,97,80,0.2); border-radius:10px; padding:14px 18px; margin-bottom:14px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.folder-bar-label { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--dsg-green); white-space:nowrap; }
+.folder-bar-path { flex:1; min-width:200px; font-family:'DM Mono', monospace; font-size:13px; color:var(--text); background:rgba(255,255,255,0.7); padding:6px 12px; border-radius:6px; border:1px solid rgba(0,97,80,0.1); word-break:break-all; }
+
+.size-label { display:flex; align-items:center; gap:6px; }
+.size-name { font-size:16px; font-weight:700; color:var(--text); font-family:'DM Mono', monospace; }
+.size-row.base .size-name { color:var(--dsg-green); }
+.base-tag { font-size:10px; font-weight:700; letter-spacing:0.08em; background:var(--dsg-green); color:#fff; padding:2px 7px; border-radius:10px; }
+.rare-tag { font-size:10px; font-weight:600; letter-spacing:0.05em; background:#f1f5f3; color:var(--text-muted); padding:2px 7px; border-radius:10px; border:1px solid var(--border); }
+
+.size-code { font-family:'DM Mono', monospace; font-size:13px; color:var(--dsg-green); word-break:break-all; }
+.size-row.rare .size-code { color:var(--text-dim); }
+
+.size-actions { display:flex; gap:6px; }
+.size-btn { background:rgba(0,97,80,0.08); border:1px solid rgba(0,97,80,0.2); color:var(--dsg-green); padding:5px 11px; border-radius:5px; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; white-space:nowrap; transition:all 0.12s; display:inline-flex; align-items:center; gap:4px; }
+.size-btn:hover { background:rgba(0,97,80,0.16); }
+.size-btn.disabled { opacity:0.4; cursor:not-allowed; pointer-events:none; }
+
+.avatar-tip { background:rgba(0,97,80,0.04); border-left:3px solid var(--dsg-green-light); padding:10px 14px; border-radius:0 6px 6px 0; font-size:13px; color:var(--text-dim); line-height:1.6; margin-top:14px; }
+
+/* ── 開發追蹤 Tracker ── */
+.dev-season-block { margin-bottom:22px; }
+.dev-season-title { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:700; color:var(--dsg-green); margin-bottom:10px; }
+.dev-season-count { font-size:12px; font-weight:600; color:var(--text-dim); background:rgba(0,97,80,0.08); padding:2px 9px; border-radius:10px; }
+.dev-table { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,97,80,0.05); }
+.dev-row { display:grid; grid-template-columns:1.7fr 1.2fr 1.2fr 1.4fr 0.9fr 0.6fr; gap:12px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); }
+.dev-row:last-child { border-bottom:none; }
+.dev-head { background:var(--bg-sidebar); font-size:11px; font-weight:700; letter-spacing:0.05em; color:var(--text-dim); text-transform:uppercase; }
+.dev-style { border-bottom:1px solid var(--border); }
+.dev-style:last-child { border-bottom:none; }
+.dev-style > summary { list-style:none; cursor:pointer; outline:none; }
+.dev-style > summary::-webkit-details-marker { display:none; }
+.dev-summary { border-bottom:none; }
+.dev-summary:hover { background:rgba(0,97,80,0.02); }
+.dev-caret { display:inline-block; color:var(--dsg-green-light); font-size:11px; margin-right:6px; transition:transform 0.15s; }
+.dev-style[open] > summary .dev-caret { transform:rotate(90deg); }
+.dev-iters { background:var(--bg-sidebar); border-top:1px dashed var(--border); padding:6px 16px 10px 34px; }
+.dev-iter { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid rgba(0,97,80,0.06); }
+.dev-iter:last-child { border-bottom:none; }
+.dev-iter-no { font-family:'DM Mono',monospace; font-size:12px; font-weight:600; color:var(--dsg-green); }
+.dev-iter-stage { font-size:13px; font-weight:600; color:var(--text); }
+.dev-style-no { font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:var(--dsg-green); }
+.dev-dim { font-size:13px; color:var(--text-dim); }
+.dev-prog { display:flex; align-items:center; gap:8px; }
+.dev-prog-bar { flex:1; height:6px; background:var(--bg-input); border-radius:3px; overflow:hidden; min-width:48px; }
+.dev-prog-fill { height:100%; background:linear-gradient(90deg,var(--dsg-green-light),var(--dsg-green)); border-radius:3px; }
+.dev-prog-label { font-size:12px; font-weight:600; color:var(--dsg-green); white-space:nowrap; font-family:'DM Mono',monospace; }
+.dev-badge { font-size:12px; font-weight:600; padding:3px 10px; border-radius:12px; white-space:nowrap; }
+.dev-segbar { display:flex; height:14px; border-radius:7px; overflow:hidden; margin:4px 0 12px; background:var(--bg-input); }
+.dev-seg { min-width:3px; }
+.dev-legend-row { display:flex; flex-wrap:wrap; gap:14px; }
+.dev-legend { display:flex; align-items:center; gap:5px; font-size:13px; color:var(--text-dim); }
+.dev-legend-dot { width:9px; height:9px; border-radius:2px; }
+
+/* ── 卡片圖片 ── */
+.card-imgs { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.card-img { max-width:100%; width:100%; border:1px solid var(--border); border-radius:8px; cursor:zoom-in; background:#fff; box-shadow:0 1px 3px rgba(0,97,80,0.06); transition:border-color 0.15s; }
+.card-img:hover { border-color:var(--dsg-green-light); }
+.lightbox { position:fixed; inset:0; background:rgba(15,23,42,0.82); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:1000; padding:24px; cursor:zoom-out; }
+.lightbox img { max-width:96%; max-height:88%; border-radius:8px; box-shadow:0 8px 40px rgba(0,0,0,0.4); background:#fff; }
+.lightbox-close { color:#fff; font-size:14px; background:rgba(255,255,255,0.12); padding:7px 16px; border-radius:8px; }
+
+/* ── 收合卡片 ── */
+.card-collapsible { padding:0; overflow:hidden; }
+.card-collapsible > summary { list-style:none; cursor:pointer; padding:13px 18px; display:flex; align-items:center; gap:10px; outline:none; }
+.card-collapsible > summary::-webkit-details-marker { display:none; }
+.card-collapsible > summary:hover { background:rgba(0,97,80,0.025); }
+.card-collapsible > summary .card-title { font-size:16px; }
+.card-caret { margin-left:auto; color:var(--dsg-green-light); font-size:12px; transition:transform 0.15s; flex-shrink:0; }
+.card-collapsible[open] > summary .card-caret { transform:rotate(90deg); }
+.card-collapsible[open] > summary { border-bottom:1px solid var(--border); }
+.card-body { padding:14px 18px 16px; }
+.card-imgflag { font-size:11px; color:var(--text-dim); background:var(--bg-input); padding:2px 8px; border-radius:8px; flex-shrink:0; }
+
+/* ── 拖曳排序 ── */
+.reorder-bar { display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.reorder-bar.editing { background:rgba(248,155,52,0.08); border:1px solid rgba(248,155,52,0.3); border-radius:8px; padding:10px 14px; }
+.reorder-hint { font-size:13px; color:var(--text-dim); flex:1; }
+.reorder-btn { font-size:13px; padding:7px 14px; border-radius:7px; border:1px solid var(--border); background:var(--card); color:var(--text-dim); cursor:pointer; font-family:inherit; transition:all 0.12s; }
+.reorder-btn:hover { color:var(--dsg-green); border-color:var(--dsg-green-light); }
+.reorder-btn.primary { background:var(--dsg-green); color:#fff; border-color:var(--dsg-green); }
+.reorder-btn.primary:hover { background:#00513f; color:#fff; }
+#cardList.reordering .reorder-item { position:relative; cursor:grab; border-radius:10px; }
+#cardList.reordering .reorder-item .card { border-color:rgba(248,155,52,0.4); border-style:dashed; }
+#cardList.reordering .reorder-item::before { content:'⠿'; position:absolute; left:4px; top:15px; color:var(--dsg-saffron); font-size:18px; z-index:2; }
+#cardList.reordering .reorder-item .card-collapsible > summary { padding-left:30px; }
+.reorder-item.dragging { opacity:0.45; }
+
+/* ── SQL Modal ── */
+.modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.55); display:flex; align-items:center; justify-content:center; z-index:1000; padding:24px; }
+.modal-box { background:#fff; border-radius:12px; padding:22px 24px; max-width:680px; width:100%; box-shadow:0 12px 48px rgba(0,0,0,0.25); }
+.modal-title { font-size:17px; font-weight:700; color:var(--dsg-green); margin-bottom:8px; }
+.modal-desc { font-size:13px; color:var(--text-dim); line-height:1.6; margin-bottom:12px; }
+.modal-sql { width:100%; height:180px; font-family:'DM Mono',monospace; font-size:12px; border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--bg-input); color:var(--text); resize:vertical; }
+.modal-actions { display:flex; gap:10px; margin-top:14px; justify-content:flex-end; }
+
+@media (max-width: 720px) {
+  .size-row { grid-template-columns:1fr; gap:6px; padding:14px; }
+  .size-actions { margin-top:4px; }
+  .dev-row { grid-template-columns:1fr; gap:5px; padding:14px; }
+  .dev-head { display:none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">DSG</div>
+  <h1>DSG 3D Standard</h1>
+  <div class="header-right">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--dsg-green)"></div>官方規範</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--dsg-green-mid)"></div>內部 SOP</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#b91c1c"></div>重要注意</div>
+    </div>
+    <a id="editBtn" href="admin.html" class="btn-admin">✏️ 編輯</a>
+  </div>
+</header>
+<div class="layout">
+  <aside id="sidebar">
+    <div class="search-sidebar"><div class="search-wrap-inner">
+      <input id="searchInput" placeholder="搜尋…" oninput="handleSearch(this.value)">
+    </div></div>
+    <div id="navMenu"><div class="loading"><div class="spinner"></div></div></div>
+  </aside>
+  <main id="main">
+    <div class="page" id="page-search">
+      <div class="page-header"><div class="page-title">🔍 搜尋結果</div></div>
+      <div id="searchResults"></div>
+    </div>
+    <div class="page active" id="page-content"><div class="loading"><div class="spinner"></div>載入中…</div></div>
+    <div class="page" id="page-contacts">
+      <div class="page-header"><div class="page-title">👥 聯絡人</div><div class="page-desc">公司內部 TD 組負責人與職代</div></div>
+      <div id="contactsList"></div>
+    </div>
+    <div class="page" id="page-feedback">
+      <div class="page-header"><div class="page-title">💬 留言板</div><div class="page-desc">遇到問題或有想法都可以留言</div></div>
+      <div class="placeholder-box">留言板功能將在下一階段加入 😊</div>
+    </div>
+  </main>
+</div>
+<script>
+const SUPABASE_URL = 'https://bpsfptwxridmmnlqjrrv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_aPDBHVpm7hrNyzaHtA4xzg_kGt9W4uD';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+let allSections=[], allEntries=[], allContacts=[], allAvatars=[], allDevelopments=[], currentSlug=null;
+let avatarData = {};
+const STAGE_DEFS = [
+  { key:'proto',     num:1, name:'PROTO',      sub:'初版打樣' },
+  { key:'fit',       num:2, name:'FIT',        sub:'試穿確認' },
+  { key:'crs',       num:3, name:'CRS',        sub:'色樣' },
+  { key:'placement', num:4, name:'對條格',     sub:'格紋/條紋/印花' },
+  { key:'jss',       num:5, name:'JSS',        sub:'全碼合併' },
+  { key:'pp',        num:6, name:'PP',         sub:'產前樣' },
+];
+const SECTION_STAGES = {
+  stages:  ['proto','fit','crs','placement','jss','pp'],
+  closet:  ['proto','fit','crs','placement','jss','pp'],
+};
+function stageName(key) { return STAGE_DEFS.find(s => s.key === key)?.name || key; }
+
+// ── Avatar 人台資料 ──────────────────────────────
+// 人台尺碼表已搬到 Supabase 的 avatars 表，由 loadData() 載入、buildAvatarData() 組成 avatarData。
+// 要修改人台請至 Supabase → Table Editor → avatars，不要再寫死在這裡。
+
+// 把 Supabase avatars 扁平資料列，組回畫面需要的巢狀結構（與 AVATAR_DATA 同格式）
+function buildAvatarData() {
+  const genders = {};
+  allAvatars.forEach(r => {
+    if (!genders[r.gender]) {
+      genders[r.gender] = { label:r.gender_label, icon:r.gender_icon, _order:r.gender_order||0, _subs:{}, shared:null };
+    }
+    const g = genders[r.gender];
+    if (r.is_shared) { g.shared = { size:r.size, code:r.code, note:r.shared_note }; return; }
+    if (!g._subs[r.subgroup]) {
+      g._subs[r.subgroup] = { key:r.subgroup, label:r.subgroup_label, _order:r.subgroup_order||0, folder:r.folder, sizes:[] };
+    }
+    g._subs[r.subgroup].sizes.push({ size:r.size, code:r.code, base:!!r.is_base, rare:!!r.is_rare, _order:r.sort_order||0 });
+  });
+  const out = {};
+  Object.keys(genders).sort((a,b)=>genders[a]._order-genders[b]._order).forEach(gk => {
+    const g = genders[gk];
+    const subgroups = Object.values(g._subs).sort((a,b)=>a._order-b._order);
+    subgroups.forEach(s => s.sizes.sort((a,b)=>a._order-b._order));
+    out[gk] = { label:g.label, icon:g.icon, subgroups };
+    if (g.shared) out[gk].shared = g.shared;
+  });
+  return out;
+}
+
+let avatarState = { gender:'men', subgroup:'regular' };
+
+async function init() {
+  await loadData(); renderNav();
+  const hash = window.location.hash.replace('#','');
+  if (hash === 'contacts') showContacts();
+  else if (hash === 'feedback') showFeedback();
+  else if (hash && allSections.find(s => s.slug === hash)) showSection(hash);
+  else if (allSections.length) showSection(allSections[0].slug);
+}
+async function loadData() {
+  const [{ data:sections, error:e1 }, { data:entries, error:e2 }, { data:contacts, error:e3 }, { data:avatars, error:e4 }, { data:developments, error:e5 }] = await Promise.all([
+    sb.from('sections').select('*').order('sort_order'),
+    sb.from('entries').select('*').order('sort_order'),
+    sb.from('contacts').select('*').order('sort_order'),
+    sb.from('avatars').select('*').order('sort_order'),
+    sb.from('developments').select('*').order('sort_order'),
+  ]);
+  if (e1 || e2 || e3) {
+    console.error(e1, e2, e3);
+    document.getElementById('page-content').innerHTML = '<div style="color:#b91c1c;padding:40px;text-align:center">資料載入失敗，請檢查 Supabase 連線設定</div>';
+    return;
+  }
+  allSections=sections||[]; allEntries=entries||[]; allContacts=contacts||[];
+  // 人台尺碼表由 Supabase 的 avatars 表載入
+  if (e4) console.error('avatars 表讀取失敗：', e4);
+  allAvatars = avatars || [];
+  avatarData = buildAvatarData();
+  // 開發追蹤：developments 表（尚未建立時為空，頁面會提示）
+  if (e5) console.warn('developments 表尚未建立或無法讀取：', e5);
+  allDevelopments = developments || [];
+}
+function renderNav() {
+  const menu = document.getElementById('navMenu');
+  const groups={}, order=[];
+  allSections.forEach(s => { if (!groups[s.group_name]) { groups[s.group_name]=[]; order.push(s.group_name); } groups[s.group_name].push(s); });
+  let html = order.map(group => `
+    <div class="section-group"><div class="group-label">${escHtml(group)}</div>
+      ${groups[group].map(s => `<div class="nav-item" id="nav-${s.slug}" onclick="showSection('${s.slug}')"><span class="nav-icon">${s.icon || '📄'}</span>${escHtml(s.name)}</div>`).join('')}
+      ${group === '管理' ? `
+        <div class="nav-item" id="nav-contacts" onclick="showContacts()"><span class="nav-icon">👥</span>聯絡人</div>
+        <div class="nav-item" id="nav-feedback" onclick="showFeedback()"><span class="nav-icon">💬</span>留言板（即時回饋）</div>
+      ` : ''}
+    </div>`).join('');
+  menu.innerHTML = html;
+}
+function clearActive() { document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); }
+function showSection(slug) {
+  if (reorderMode && slug !== reorderSlug) { reorderMode = false; reorderSlug = null; }
+  currentSlug = slug; window.location.hash = slug;
+  document.getElementById('searchInput').value = '';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-content').classList.add('active');
+  clearActive();
+  document.getElementById('nav-' + slug)?.classList.add('active');
+  const section = allSections.find(s => s.slug === slug);
+  const entries = allEntries.filter(e => e.section_id === section?.id);
+  renderSection(section, entries);
+}
+function showContacts() {
+  window.location.hash = 'contacts';
+  document.getElementById('searchInput').value = '';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-contacts').classList.add('active');
+  clearActive(); document.getElementById('nav-contacts')?.classList.add('active');
+  renderContacts();
+}
+function showFeedback() {
+  window.location.hash = 'feedback';
+  document.getElementById('searchInput').value = '';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-feedback').classList.add('active');
+  clearActive(); document.getElementById('nav-feedback')?.classList.add('active');
+}
+function renderSection(section, entries) {
+  const main = document.getElementById('page-content');
+  if (!section) { main.innerHTML = '<div class="empty">找不到此分類</div>'; return; }
+  if (section.slug === 'checklist') { main.innerHTML = renderChecklistPage(section, entries); return; }
+  if (section.slug === 'tracker-info') { renderTrackerPage(section); return; }
+  if (section.slug === 'avatar') { renderAvatarPage(section); return; }
+  if (SECTION_STAGES[section.slug]) { renderStageSection(section, entries); return; }
+  renderCardSection(section, entries);
+}
+
+// ── 一般卡片分頁（支援拖曳排序）────────────────────────────────
+let reorderMode = false, reorderSlug = null;
+function renderCardSection(section, entries) {
+  const main = document.getElementById('page-content');
+  const list = entries.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const editing = reorderMode && reorderSlug === section.slug;
+  const bar = editing
+    ? `<div class="reorder-bar editing"><span class="reorder-hint">↕ 拖曳卡片調整順序，完成後按「鎖定」</span>
+         <button class="reorder-btn primary" onclick="lockReorder('${section.slug}')">🔒 鎖定並儲存</button>
+         <button class="reorder-btn" onclick="cancelReorder()">取消</button></div>`
+    : `<div class="reorder-bar"><button class="reorder-btn" onclick="startReorder('${section.slug}')">↕ 調整排序</button></div>`;
+  const cards = list.length
+    ? list.map(e => editing
+        ? `<div class="reorder-item" draggable="true" data-id="${e.id}">${renderCard(e, true)}</div>`
+        : renderCard(e, true)).join('')
+    : '<div class="empty">此分類尚無內容，請至後台新增</div>';
+  main.innerHTML = `<div class="page-header"><div class="page-title">${section.icon || ''} ${escHtml(section.name)}</div></div>
+    ${bar}<div id="cardList" class="${editing ? 'reordering' : ''}">${cards}</div>`;
+  if (editing) wireDragDrop();
+}
+function startReorder(slug) { reorderMode = true; reorderSlug = slug; showSection(slug); }
+function cancelReorder() { const s = reorderSlug; reorderMode = false; reorderSlug = null; showSection(s); }
+function lockReorder(slug) {
+  const ids = [...document.querySelectorAll('#cardList .reorder-item')].map(el => el.getAttribute('data-id'));
+  const sql = '-- 排序更新（貼到 Supabase SQL Editor 執行即可固定順序）\n'
+    + ids.map((id, i) => `update public.entries set sort_order=${i + 1} where id='${id}';`).join('\n');
+  ids.forEach((id, i) => { const e = allEntries.find(x => x.id === id); if (e) e.sort_order = i + 1; });
+  reorderMode = false; reorderSlug = null;
+  showSection(slug);
+  showSqlModal(sql);
+}
+function wireDragDrop() {
+  const list = document.getElementById('cardList');
+  let dragEl = null;
+  list.querySelectorAll('.reorder-item').forEach(item => {
+    item.addEventListener('dragstart', e => { dragEl = item; item.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    item.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('dragging'); dragEl = null; });
+  });
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragEl) return;
+    const after = dragAfter(list, e.clientY);
+    if (after == null) list.appendChild(dragEl); else list.insertBefore(dragEl, after);
+  });
+}
+function dragAfter(list, y) {
+  const els = [...list.querySelectorAll('.reorder-item:not(.dragging)')];
+  return els.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    return (offset < 0 && offset > closest.offset) ? { offset, element: child } : closest;
+  }, { offset: -Infinity, element: null }).element;
+}
+function showSqlModal(sql) {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">🔒 排序已鎖定 — 貼到 Supabase 執行即永久生效</div>
+    <div class="modal-desc">畫面已照新順序顯示。要讓「所有人」都看到這個順序，請把下面的 SQL 貼到 Supabase → SQL Editor → Run。</div>
+    <textarea class="modal-sql" readonly>${escHtml(sql)}</textarea>
+    <div class="modal-actions">
+      <button class="reorder-btn primary" id="copySqlBtn">📋 複製 SQL</button>
+      <button class="reorder-btn" onclick="this.closest('.modal-overlay').remove()">關閉</button>
+    </div></div>`;
+  ov.onclick = () => ov.remove();
+  document.body.appendChild(ov);
+  ov.querySelector('#copySqlBtn').onclick = () => navigator.clipboard.writeText(sql).then(showCopyToast);
+}
+function openLightbox(src) {
+  const ov = document.createElement('div');
+  ov.className = 'lightbox';
+  ov.innerHTML = `<img src="${escHtml(src)}" alt=""><div class="lightbox-close">✕ 關閉（點任意處）</div>`;
+  ov.onclick = () => ov.remove();
+  document.body.appendChild(ov);
+}
+
+// ── Avatar Page ────────────────────────────────
+function renderAvatarPage(section) {
+  const main = document.getElementById('page-content');
+  if (!Object.keys(avatarData).length) {
+    main.innerHTML = `<div class="page-header"><div class="page-title">${section.icon || ''} ${escHtml(section.name)}</div></div>
+      <div class="empty">人台資料載入失敗，請確認 Supabase 的 avatars 表已建立</div>`;
+    return;
+  }
+  const g = avatarData[avatarState.gender] || avatarData[Object.keys(avatarData)[0]];
+  if (!g.subgroups.find(sg => sg.key === avatarState.subgroup)) {
+    avatarState.subgroup = g.subgroups[0].key;
+  }
+  const refEntries = allEntries.filter(e => e.section_id === section.id);
+
+  const genderTabs = Object.entries(avatarData).map(([key, data]) => `
+    <button class="gender-tab ${avatarState.gender === key ? 'active' : ''}" onclick="selectGender('${key}')">
+      <span class="gender-icon">${data.icon}</span>${data.label}
+    </button>
+  `).join('');
+
+  const showSubTabs = g.subgroups.length > 1;
+  const subTabs = showSubTabs ? `
+    <div class="subgroup-tabs">
+      ${g.subgroups.map(sg => `
+        <button class="subgroup-tab ${avatarState.subgroup === sg.key ? 'active' : ''}" onclick="selectSubgroup('${sg.key}')">${sg.label}</button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const sharedHtml = g.shared ? renderSharedAvatar(g.shared) : '';
+  const currentSub = g.subgroups.find(sg => sg.key === avatarState.subgroup);
+  const folderHtml = renderFolderBar(currentSub.folder);
+  const sizesHtml = renderSizeTable(currentSub.sizes);
+
+  main.innerHTML = `
+    <div class="page-header">
+      <div class="page-title">${section.icon || ''} ${escHtml(section.name)}</div>
+      <div class="page-desc">點選 Gender 與尺碼分類，複製資料夾路徑後，於檔案總管中對應人台編號取用檔案</div>
+    </div>
+    <div class="gender-tabs">${genderTabs}</div>
+    ${subTabs}
+    ${sharedHtml}
+    ${folderHtml}
+    ${sizesHtml}
+    <div class="avatar-tip">
+      ★ 標示為「基準碼」是該分類最常用的尺碼<br>
+      ⚪ 標示為「少用」的尺碼通常不會用，需要時再使用
+    </div>
+    ${refEntries.length ? `
+      <div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--border)">
+        <div class="card-title" style="font-size:18px;margin-bottom:14px">📄 人台相關規範</div>
+        ${refEntries.map(e => renderCard(e)).join('')}
+      </div>` : ''}
+  `;
+}
+
+function renderFolderBar(folder) {
+  if (!folder) return '';
+  return `
+    <div class="folder-bar">
+      <div class="folder-bar-label">
+        <span style="font-size:16px">📁</span>
+        <span>人台檔案資料夾</span>
+      </div>
+      <div class="folder-bar-path">${escHtml(folder)}</div>
+      <button class="size-btn copy-btn" data-path="${escHtml(folder)}">📋 複製路徑</button>
+    </div>
+  `;
+}
+
+function renderSharedAvatar(shared) {
+  return `
+    <div class="shared-avatar-box">
+      <div class="shared-avatar-label">${escHtml(shared.note)}</div>
+      <div style="display:flex;align-items:center;gap:14px;padding:4px 0">
+        <span class="size-name">${escHtml(shared.size)}</span>
+        <span class="size-code" style="flex:1">${escHtml(shared.code)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderSizeTable(sizes) {
+  return `
+    <div class="size-table">
+      ${sizes.map(s => {
+        const classes = ['size-row','size-row-simple'];
+        if (s.base) classes.push('base');
+        if (s.rare) classes.push('rare');
+        return `
+          <div class="${classes.join(' ')}">
+            <div class="size-label">
+              <span class="size-name">${s.base ? '★ ' : ''}${escHtml(s.size)}</span>
+              ${s.base ? '<span class="base-tag">基準碼</span>' : ''}
+              ${s.rare ? '<span class="rare-tag">少用</span>' : ''}
+            </div>
+            <div class="size-code">${escHtml(s.code)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function selectGender(key) {
+  avatarState.gender = key;
+  const g = avatarData[key];
+  avatarState.subgroup = g.subgroups[0].key;
+  const section = allSections.find(s => s.slug === 'avatar');
+  renderAvatarPage(section);
+}
+
+function selectSubgroup(key) {
+  avatarState.subgroup = key;
+  const section = allSections.find(s => s.slug === 'avatar');
+  renderAvatarPage(section);
+}
+// ── 開發追蹤 Tracker ────────────────────────────
+const DEV_STATUS = {
+  '已完成': { color:'#006150', bg:'rgba(0,97,80,0.14)' },
+  '進行中': { color:'#2E7E6A', bg:'rgba(46,126,106,0.14)' },
+  '已退單': { color:'#b91c1c', bg:'rgba(185,28,28,0.10)' },
+  '待回覆': { color:'#b45309', bg:'rgba(245,158,11,0.16)' },
+  '未開始': { color:'#64748b', bg:'rgba(100,116,139,0.12)' },
+};
+const DEV_STATUS_ORDER = ['已完成','進行中','待回覆','已退單','未開始'];
+function devStatusStyle(s) { return DEV_STATUS[s] || { color:'#475569', bg:'rgba(71,85,105,0.1)' }; }
+let trackerState = { view:'styles' };
+
+function renderTrackerPage(section) {
+  const main = document.getElementById('page-content');
+  const tabs = [
+    { key:'styles', label:'款式進度', icon:'📋' },
+    { key:'season', label:'季度摘要', icon:'📊' },
+    { key:'todo',   label:'待辦',     icon:'⏰' },
+  ];
+  const tabHtml = tabs.map(t => `<button class="gender-tab ${trackerState.view===t.key?'active':''}" onclick="setTrackerView('${t.key}')"><span class="gender-icon">${t.icon}</span>${t.label}</button>`).join('');
+  let body;
+  if (!allDevelopments.length) {
+    body = '<div class="placeholder-box">目前尚無開發資料。<br>請至 Supabase 的 <b>developments</b> 表新增款式，這裡就會自動顯示。</div>';
+  } else if (trackerState.view === 'season') { body = renderDevSeason(); }
+  else if (trackerState.view === 'todo') { body = renderDevTodo(); }
+  else { body = renderDevStyles(); }
+  main.innerHTML = `<div class="page-header"><div class="page-title">${section.icon || ''} ${escHtml(section.name)}</div>
+    <div class="page-desc">各季 3D 開發進度追蹤（資料於 Supabase 的 developments 表維護，摘要與待辦會自動計算）</div></div>
+    <div class="gender-tabs">${tabHtml}</div>${body}`;
+}
+function setTrackerView(v) { trackerState.view = v; renderTrackerPage(allSections.find(s => s.slug === 'tracker-info')); }
+
+function stageIndex(v) { if (!v) return -1; const x = String(v).toLowerCase(); return STAGE_DEFS.findIndex(s => s.key === x || s.name.toLowerCase() === x); }
+function renderStageProgress(stageKey, status) {
+  const total = STAGE_DEFS.length, idx = stageIndex(stageKey), done = status === '已完成';
+  const reached = done ? total : (idx < 0 ? 0 : idx + 1);
+  const pct = Math.round(reached / total * 100);
+  const label = done ? '完成' : (idx < 0 ? '—' : STAGE_DEFS[idx].name);
+  return `<div class="dev-prog"><div class="dev-prog-bar"><div class="dev-prog-fill" style="width:${pct}%"></div></div><span class="dev-prog-label">${escHtml(label)}</span></div>`;
+}
+// 依款號分組，每款取「最新一筆」(3D次最大) 當摘要，並保留全部歷程
+function devStyleGroups() {
+  const map = {}, order = [];
+  allDevelopments.forEach(r => { const k = r.style_no || '(無款號)'; if (!map[k]) { map[k] = { key:k, rows:[] }; order.push(k); } map[k].rows.push(r); });
+  order.forEach(k => {
+    const rows = map[k].rows.slice().sort((a, b) => (a.iteration || 0) - (b.iteration || 0));
+    map[k].rows = rows;
+    map[k].latest = rows.reduce((acc, r) => ((r.iteration || 0) >= (acc.iteration || 0) ? r : acc), rows[0]);
+  });
+  return { map, order };
+}
+// 去掉業務內部分組前綴（V-/I- 等），只留實際季節：V-FA 2026 / I-FA 2026 → FA 2026
+function normSeason(s) { return s ? String(s).replace(/^[A-Za-z]+-/, '').trim() : ''; }
+function devGroupsBySeason() {
+  const { map, order } = devStyleGroups();
+  const seasons = {}, sOrder = [];
+  order.forEach(k => { const s = normSeason(map[k].latest.season) || '未分類'; if (!seasons[s]) { seasons[s] = []; sOrder.push(s); } seasons[s].push(map[k]); });
+  sOrder.sort((a, b) => String(b).localeCompare(String(a)));
+  return { seasons, sOrder };
+}
+function renderDevStyles() {
+  const { seasons, sOrder } = devGroupsBySeason();
+  return sOrder.map(season => `
+    <div class="dev-season-block">
+      <div class="dev-season-title">📅 ${escHtml(season)} <span class="dev-season-count">${seasons[season].length} 款</span></div>
+      <div class="dev-table">
+        <div class="dev-row dev-head"><div>款號 / 品牌</div><div>品項 / 性別</div><div>TD / 3D</div><div>目前階段</div><div>狀態</div><div>3D次</div></div>
+        ${seasons[season].map(g => renderDevStyle(g)).join('')}
+      </div>
+    </div>`).join('');
+}
+function renderDevStyle(g) {
+  const d = g.latest, st = devStatusStyle(d.status);
+  return `<details class="dev-style">
+    <summary class="dev-row dev-summary">
+      <div><span class="dev-caret">▸</span><span class="dev-style-no">${escHtml(d.style_no || '')}</span><div class="dev-dim">${escHtml(d.brand || '')}</div></div>
+      <div class="dev-dim">${escHtml(d.product_item || '')}${d.gender ? `<br>${escHtml(d.gender)}` : ''}</div>
+      <div class="dev-dim">${escHtml(d.td || '')}${d.modeler ? `<br>${escHtml(d.modeler)}` : ''}</div>
+      <div>${renderStageProgress(d.stage, d.status)}</div>
+      <div><span class="dev-badge" style="color:${st.color};background:${st.bg}">${escHtml(d.status || '')}</span></div>
+      <div class="dev-dim">${g.rows.length} 次</div>
+    </summary>
+    <div class="dev-iters">${g.rows.map(r => renderDevIter(r)).join('')}</div>
+  </details>`;
+}
+function renderDevIter(r) {
+  const st = devStatusStyle(r.status);
+  const dates = [r.start_date ? `開始 ${fmtDate(r.start_date)}` : '', r.end_date ? `完成 ${fmtDate(r.end_date)}` : ''].filter(Boolean).join('　→　');
+  const ret = (r.return_sales || 0) + (r.return_pattern || 0);
+  return `<div class="dev-iter">
+    <span class="dev-iter-no">3D #${escHtml(String(r.iteration || ''))}</span>
+    <span class="dev-iter-stage">${escHtml(r.stage || r.dev_type || '')}</span>
+    <span class="dev-badge" style="color:${st.color};background:${st.bg}">${escHtml(r.status || '')}</span>
+    ${dates ? `<span class="dev-dim">${escHtml(dates)}</span>` : ''}
+    ${r.lt ? `<span class="dev-dim">LT ${escHtml(String(r.lt))}</span>` : ''}
+    ${ret ? `<span class="dev-dim" style="color:#b45309">退回 ${ret} 次</span>` : ''}
+    ${r.modeler ? `<span class="dev-dim">3D：${escHtml(r.modeler)}</span>` : ''}
+  </div>`;
+}
+function fmtDate(v) { return v ? String(v).slice(0, 10) : ''; }
+function renderDevSeason() {
+  const { seasons, sOrder } = devGroupsBySeason();
+  return sOrder.map(season => {
+    const groups = seasons[season], total = groups.length, byStatus = {};
+    groups.forEach(g => { const s = g.latest.status || '未分類'; byStatus[s] = (byStatus[s] || 0) + 1; });
+    const pct = Math.round((byStatus['已完成'] || 0) / total * 100);
+    const present = DEV_STATUS_ORDER.filter(s => byStatus[s]).concat(Object.keys(byStatus).filter(s => !DEV_STATUS_ORDER.includes(s)));
+    const segs = present.map(s => `<div class="dev-seg" style="flex:${byStatus[s]};background:${devStatusStyle(s).color}" title="${escHtml(s)} ${byStatus[s]}"></div>`).join('');
+    const legend = present.map(s => `<span class="dev-legend"><span class="dev-legend-dot" style="background:${devStatusStyle(s).color}"></span>${escHtml(s)} ${byStatus[s]}</span>`).join('');
+    return `<div class="card"><div class="card-header"><div class="card-title">📅 ${escHtml(season)}</div><span class="badge badge-official">${total} 款 · 完成 ${pct}%</span></div>
+      <div class="dev-segbar">${segs}</div><div class="dev-legend-row">${legend}</div></div>`;
+  }).join('');
+}
+function renderDevTodo() {
+  const { map, order } = devStyleGroups();
+  const flagged = order.map(k => map[k]).filter(g => (g.latest.status || '') !== '已完成');
+  if (!flagged.length) return '<div class="placeholder-box">🎉 目前所有款式的最新狀態都是「已完成」。</div>';
+  const rank = s => ({ '已退單':0, '待回覆':1, '進行中':2, '未開始':3 })[s] ?? 4;
+  flagged.sort((a, b) => rank(a.latest.status) - rank(b.latest.status));
+  return `<div class="checklist">${flagged.map(g => {
+    const d = g.latest, st = devStatusStyle(d.status);
+    return `<div class="check-item" style="cursor:default;align-items:center">
+      <div style="flex:1">
+        <div style="font-weight:600">${escHtml(d.style_no || '')} <span class="dev-dim" style="font-weight:400">${escHtml(d.brand || '')}</span>
+          <span class="dev-badge" style="color:${st.color};background:${st.bg}">${escHtml(d.status || '')}</span></div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px">${escHtml(normSeason(d.season))}${d.product_item ? ` · ${escHtml(d.product_item)}` : ''}${d.td ? ` · TD ${escHtml(d.td)}` : ''} · 最新 3D #${escHtml(String(d.iteration || ''))} ${escHtml(d.stage || '')}</div>
+      </div></div>`;
+  }).join('')}</div>`;
+}
+function renderStageSection(section, entries) {
+  const main = document.getElementById('page-content');
+  const stageKeys = SECTION_STAGES[section.slug];
+  const stages = STAGE_DEFS.filter(s => stageKeys.includes(s.key));
+  const descMap = {
+    stages: '點選下方階段卡片，了解 DSG 各開發階段的目的、協作部門與差異。',
+    prefit: '點選階段卡片，查看該階段的 Prefit 設定規範。僅 PROTO / FIT / JSS / PP 需要做 Prefit。',
+    details: '點選階段卡片，查看該階段 TD 確認後的細節調整規範。',
+    closet: '點選階段卡片，查看該階段的 CLO-SET 上傳流程。',
+  };
+  const flowHtml = stages.map((s, i) => `
+    <div class="stage-box clickable" id="stagebox-${s.key}" onclick="selectStage('${section.slug}','${s.key}')">
+      <div class="stage-num">STAGE ${s.num}</div><div class="stage-name">${s.name}</div><div class="stage-sub">${s.sub}</div>
+    </div>${i < stages.length-1 ? '<span class="stage-arrow">→</span>' : ''}`).join('');
+  main.innerHTML = `<div class="page-header"><div class="page-title">${section.icon || ''} ${escHtml(section.name)}</div><div class="page-desc">${descMap[section.slug] || ''}</div></div>
+    <div class="stage-flow">${flowHtml}</div><div id="stageContent" style="margin-top:20px"></div>`;
+  selectStage(section.slug, stageKeys[0]);
+}
+function selectStage(slug, stageKey) {
+  document.querySelectorAll('.stage-box').forEach(b => b.classList.remove('selected'));
+  document.getElementById('stagebox-' + stageKey)?.classList.add('selected');
+  const section = allSections.find(s => s.slug === slug);
+  const entries = allEntries.filter(e => e.section_id === section?.id && e.stage === stageKey);
+  const container = document.getElementById('stageContent');
+  container.innerHTML = entries.length ? entries.map(e => renderCard(e)).join('') : '<div class="empty">此階段尚無內容，請至後台新增</div>';
+}
+function renderCard(e, collapsible) {
+  const badgeMap = { official:'官方規範', internal:'內部 SOP', warning:'⚠️ 重要' };
+  const badgeClass = { official:'badge-official', internal:'badge-internal', warning:'badge-warning' };
+  const paths = (e.paths || []).map(p => {
+    const hasSep = p.includes('｜');
+    const label = hasSep ? p.split('｜')[0].trim() : '';
+    const value = hasSep ? p.split('｜')[1].trim() : p.trim();
+    const isUrl = value.startsWith('http');
+    const isMail = value.includes('@') && !isUrl;
+    return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;padding:6px 0;border-bottom:1px solid rgba(0,97,80,0.06)">
+      ${label ? `<span style="font-size:13px;color:var(--text-dim);white-space:nowrap;min-width:140px;flex-shrink:0">${escHtml(label)}</span>` : ''}
+      ${isUrl ? `<a href="${escHtml(value)}" target="_blank" style="flex-shrink:0;background:rgba(0,97,80,0.08);border:1px solid rgba(0,97,80,0.2);color:var(--dsg-green);padding:3px 10px;border-radius:4px;font-size:12px;text-decoration:none">🔗 開啟</a><span style="font-size:12px;color:var(--text-dim);word-break:break-all;font-family:'DM Mono',monospace">${escHtml(value)}</span>`
+        : isMail ? `<a href="mailto:${escHtml(value)}" style="flex-shrink:0;background:rgba(0,97,80,0.08);border:1px solid rgba(0,97,80,0.2);color:var(--dsg-green);padding:3px 10px;border-radius:4px;font-size:12px;text-decoration:none">✉️ 寄信</a><span style="font-size:12px;color:var(--dsg-green);font-family:'DM Mono',monospace;word-break:break-all">${escHtml(value)}</span>`
+        : `<button class="copy-btn" data-path="${escHtml(value)}">📋 copy</button><span style="font-size:12px;color:var(--dsg-green);font-family:'DM Mono',monospace;word-break:break-all">${escHtml(value)}</span>`}
+    </div>`;
+  }).join('');
+  const content = e.content ? `<div class="card-content">${linkify(escHtml(e.content))}</div>` : '';
+  const imgs = (e.images || []).length ? `<div class="card-imgs">${e.images.map(src => `<img class="card-img" src="${escHtml(src)}" alt="" loading="lazy" onclick="openLightbox('${escHtml(src)}')">`).join('')}</div>` : '';
+  const badge = `<span class="badge ${badgeClass[e.source] || 'badge-internal'}">${badgeMap[e.source] || '內部 SOP'}</span>`;
+  if (collapsible) {
+    const flag = (e.images || []).length ? '<span class="card-imgflag">🖼 圖示</span>' : '';
+    return `<details class="card card-collapsible"><summary class="card-summary"><span class="card-title">${escHtml(e.title)}</span>${badge}${flag}<span class="card-caret">▸</span></summary><div class="card-body">${content}${imgs}${paths}</div></details>`;
+  }
+  return `<div class="card"><div class="card-header"><div class="card-title">${escHtml(e.title)}</div>${badge}</div>${content}${imgs}${paths}</div>`;
+}
+function linkify(text) { return text.replace(/(https?:\/\/[^\s<]+)/g, url => `<a href="${url}" target="_blank" style="color:var(--dsg-green);text-decoration:underline;text-underline-offset:2px">${url}</a>`); }
+function renderChecklistPage(section, entries) {
+  return `<div class="page-header"><div class="page-title">✅ ${escHtml(section.name)}</div><div class="page-desc">送出 3D 樣品到 CLO-SET 前，請依序確認以下項目</div></div>
+    <div class="checklist" id="checklist-main">${entries.map(e => {
+      if (/^【.*】$/.test(e.title)) return `<div class="check-group">${escHtml(e.title.replace(/^【|】$/g,''))}</div>`;
+      return `<div class="check-item" onclick="toggleCheck(this)"><input type="checkbox" onclick="event.stopPropagation();this.parentElement.classList.toggle('done',this.checked)">
+        <div style="flex:1"><div style="font-weight:500">${escHtml(e.title)}</div>${e.content ? `<div style="font-size:13px;color:var(--text-dim);margin-top:4px">${escHtml(e.content)}</div>` : ''}</div>
+      </div>`;
+    }).join('')}</div><button class="reset-btn" onclick="resetChecklist()">↺ 重置所有勾選</button>`;
+}
+function toggleCheck(el) { if (!el.classList.contains('check-item')) el = el.closest('.check-item'); if (!el) return; const cb = el.querySelector('input[type=checkbox]'); if (!cb) return; cb.checked = !cb.checked; el.classList.toggle('done', cb.checked); }
+function resetChecklist() { document.querySelectorAll('#checklist-main .check-item').forEach(item => { item.classList.remove('done'); const cb = item.querySelector('input'); if (cb) cb.checked = false; }); }
+function renderContacts() {
+  const container = document.getElementById('contactsList');
+  if (!allContacts.length) { container.innerHTML = '<div class="empty">尚無聯絡人資料</div>'; return; }
+  const groups={}, order=[];
+  allContacts.forEach(c => { const key = c.category_group || '其他'; if (!groups[key]) { groups[key]=[]; order.push(key); } groups[key].push(c); });
+  let html = '';
+  if (groups['部門主管']) {
+    html += `<div class="contact-group"><div class="contact-group-title">部門主管</div><div class="contact-grid">
+      ${groups['部門主管'].map(c => `<div class="contact-card dept-head-card"><div class="contact-category">${escHtml(c.brand || '')} · ${escHtml(c.category || '')}</div>
+        <div class="contact-row"><span class="contact-label">主管</span><span class="contact-name-zh">${escHtml(c.owner_name_zh || '')}</span>${c.owner_name_en ? `<span class="contact-name-en">${escHtml(c.owner_name_en)}</span>` : ''}</div></div>`).join('')}
+    </div></div>`;
+  }
+  order.filter(g => g !== '部門主管').forEach(groupName => {
+    html += `<div class="contact-group"><div class="contact-group-title">${escHtml(groupName)}</div><div class="contact-grid">
+      ${groups[groupName].map(c => `<div class="contact-card"><div class="contact-category">${escHtml(c.category || '')}</div>
+        ${c.owner_name_zh ? `<div class="contact-row"><span class="contact-label">負責</span><span class="contact-name-zh">${escHtml(c.owner_name_zh)}</span>${c.owner_name_en ? `<span class="contact-name-en">${escHtml(c.owner_name_en)}</span>` : ''}</div>` : ''}
+        ${c.backup_name_zh ? `<div class="contact-row contact-backup"><span class="contact-label">職代</span><span class="contact-name-zh" style="font-weight:500;color:var(--text-dim)">${escHtml(c.backup_name_zh)}</span>${c.backup_name_en ? `<span class="contact-name-en">${escHtml(c.backup_name_en)}</span>` : ''}</div>` : ''}
+        ${c.email ? `<div class="contact-row" style="margin-top:8px"><a href="mailto:${escHtml(c.email)}" style="font-size:12px;color:var(--dsg-green);text-decoration:none;background:rgba(0,97,80,0.08);padding:3px 10px;border-radius:4px">✉️ ${escHtml(c.email)}</a></div>` : ''}
+        ${c.note ? `<div style="font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.5">${escHtml(c.note)}</div>` : ''}</div>`).join('')}
+    </div></div>`;
+  });
+  container.innerHTML = html;
+}
+function handleSearch(q) {
+  if (!q.trim()) { document.getElementById('page-search').classList.remove('active'); document.getElementById('page-content').classList.add('active'); if (currentSlug) showSection(currentSlug); return; }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-search').classList.add('active');
+  clearActive();
+  const kws = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const results = allEntries.filter(e => { const text = [e.title, e.content, ...(e.paths||[])].join(' ').toLowerCase(); return kws.some(k => text.includes(k)); });
+  const contactResults = allContacts.filter(c => { const text = [c.owner_name_zh, c.owner_name_en, c.backup_name_zh, c.backup_name_en, c.category, c.email].join(' ').toLowerCase(); return kws.some(k => text.includes(k)); });
+  const container = document.getElementById('searchResults');
+  if (!results.length && !contactResults.length) { container.innerHTML = '<div class="empty">找不到相關結果，試試其他關鍵字</div>'; return; }
+  let html = '';
+  if (results.length) {
+    html += results.map(e => {
+      const section = allSections.find(s => s.id === e.section_id);
+      let content = escHtml(e.content || '');
+      kws.forEach(k => { if (k) content = content.replace(new RegExp(escapeRegex(k), 'gi'), m => `<mark>${m}</mark>`); });
+      const stageLabel = e.stage ? ` · ${stageName(e.stage)}` : '';
+      return `<div class="result-card" onclick="showSection('${section?.slug}')"><div class="result-section">📂 ${escHtml(section?.name || '')}${stageLabel}</div>
+        <div class="result-title">${escHtml(e.title)}</div><div class="result-body">${content}</div></div>`;
+    }).join('');
+  }
+  if (contactResults.length) {
+    html += contactResults.map(c => `<div class="result-card" onclick="showContacts()"><div class="result-section">📂 聯絡人</div>
+      <div class="result-title">${escHtml(c.category || '')}</div><div class="result-body">負責：${escHtml(c.owner_name_zh || '')} ${escHtml(c.owner_name_en || '')}${c.backup_name_zh ? ` · 職代：${escHtml(c.backup_name_zh)} ${escHtml(c.backup_name_en || '')}` : ''}</div></div>`).join('');
+  }
+  container.innerHTML = html;
+}
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function escHtml(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showCopyToast() {
+  const toast = document.createElement('div');
+  toast.textContent = '✓ 已複製';
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid rgba(0,97,80,0.3);color:var(--dsg-green);padding:8px 16px;border-radius:8px;font-size:14px;z-index:999;transition:opacity 0.3s;box-shadow:0 4px 12px rgba(0,97,80,0.15)';
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 1200);
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.copy-btn'); if (!btn) return;
+  const path = btn.getAttribute('data-path'); if (!path) return;
+  navigator.clipboard.writeText(path).then(showCopyToast).catch(() => {
+    const el = document.createElement('textarea'); el.value = path; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); showCopyToast();
+  });
+});
+init();
+</script>
+</body>
+</html>
