@@ -34,7 +34,11 @@ function useGroups(developments) {
     const seasons = {}, sOrder = [];
     order.forEach((k) => { const s = normSeason(map[k].latest.season) || '未分類'; if (!seasons[s]) { seasons[s] = []; sOrder.push(s); } seasons[s].push(map[k]); });
     const yearOf = (s) => { const m = String(s).match(/(\d{4})/); return m ? +m[1] : 0; };
-    sOrder.sort((a, b) => (yearOf(b) - yearOf(a)) || String(b).localeCompare(String(a)));
+    // 季節先後：春→夏→秋→冬（使用者按季節開發）
+    const SEASON_RANK = { SP: 1, SS: 1, SU: 2, FA: 3, AU: 3, FW: 3, WI: 4, HO: 4 };
+    const seasonRank = (s) => SEASON_RANK[String(s).replace(/\d{4}/, '').trim().toUpperCase()] ?? 9;
+    // 年份新到舊 → 同一年內依春夏秋冬
+    sOrder.sort((a, b) => (yearOf(b) - yearOf(a)) || (seasonRank(a) - seasonRank(b)) || String(a).localeCompare(String(b)));
     return { map, order, seasons, sOrder };
   }, [developments]);
 }
