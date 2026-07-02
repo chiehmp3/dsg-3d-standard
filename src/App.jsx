@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Layout, Menu, Input, Spin, Alert, Empty } from 'antd';
+import { Layout, Menu, Input, Spin, Alert, Empty, Button, Space } from 'antd';
 import { loadAll } from './data';
+import { sb } from './supabase';
 import SectionPage from './pages/Section';
 import ChecklistPage from './pages/Checklist';
 import AvatarPage from './pages/Avatar';
@@ -44,7 +45,19 @@ export default function App() {
   }, [data]);
 
   if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin size="large" /></div>;
-  if (data.error) return <div style={{ padding: 40 }}><Alert type="error" showIcon message="資料載入失敗，請檢查 Supabase 連線設定" /></div>;
+  if (data.error || !data.sections.length) {
+    return (
+      <div style={{ maxWidth: 480, margin: '48px auto', padding: 24, textAlign: 'center' }}>
+        <Alert type="warning" showIcon
+          message="內容載入不完整"
+          description="可能是登入權限或連線暫時異常。請先「重新載入」；若仍空白，按「登出並重新載入」以訪客身分開啟。" />
+        <Space style={{ marginTop: 16 }}>
+          <Button type="primary" onClick={() => location.reload()}>重新載入</Button>
+          <Button onClick={async () => { try { await sb.auth.signOut(); } catch (e) { /* ignore */ } location.reload(); }}>登出並重新載入</Button>
+        </Space>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     if (query.trim()) return <SearchPage data={data} query={query} onOpen={(s) => { setQuery(''); setSlug(s); }} />;
