@@ -33,7 +33,8 @@ function useGroups(developments) {
     });
     const seasons = {}, sOrder = [];
     order.forEach((k) => { const s = normSeason(map[k].latest.season) || '未分類'; if (!seasons[s]) { seasons[s] = []; sOrder.push(s); } seasons[s].push(map[k]); });
-    sOrder.sort((a, b) => String(b).localeCompare(String(a)));
+    const yearOf = (s) => { const m = String(s).match(/(\d{4})/); return m ? +m[1] : 0; };
+    sOrder.sort((a, b) => (yearOf(b) - yearOf(a)) || String(b).localeCompare(String(a)));
     return { map, order, seasons, sOrder };
   }, [developments]);
 }
@@ -62,34 +63,36 @@ function IterList({ rows }) {
 
 export default function TrackerPage({ data }) {
   const [view, setView] = useState('styles');
+  const [seasonTab, setSeasonTab] = useState(null);
   const { map, order, seasons, sOrder } = useGroups(data.developments);
 
   if (!data.developments.length) {
     return <Empty description="目前尚無開發資料。請在 Supabase 的 developments 表新增款式，這裡就會自動顯示。" />;
   }
 
+  // 款式進度：每個季度一個分頁；預設顯示最新一季
+  const activeSeason = seasonTab && sOrder.includes(seasonTab) ? seasonTab : sOrder[0];
   const styles = (
     <div>
-      {sOrder.map((season) => (
-        <div key={season} style={{ marginBottom: 22 }}>
-          <div style={{ fontWeight: 700, color: '#006150', marginBottom: 10 }}>📅 {season}　<Tag>{seasons[season].length} 款</Tag></div>
-          <Collapse items={seasons[season].map((gr) => {
-            const d = gr.latest;
-            return {
-              key: gr.key,
-              label: (
-                <Space wrap>
-                  <span className="mono" style={{ fontWeight: 600, color: '#006150' }}>{d.style_no}</span>
-                  <span className="page-desc" style={{ margin: 0 }}>{d.brand} · {d.product_item} · {d.gender}</span>
-                  <Tag color={STATUS_COLOR[d.status] || 'default'}>{d.status}</Tag>
-                  <span className="page-desc" style={{ margin: 0 }}>{gr.rows.length} 次</span>
-                </Space>
-              ),
-              children: <IterList rows={gr.rows} />,
-            };
-          })} style={{ background: '#fff' }} />
-        </div>
-      ))}
+      <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
+        items={sOrder.map((s) => ({ key: s, label: `📅 ${s}（${seasons[s].length}）` }))} />
+      {activeSeason && (
+        <Collapse items={seasons[activeSeason].map((gr) => {
+          const d = gr.latest;
+          return {
+            key: gr.key,
+            label: (
+              <Space wrap>
+                <span className="mono" style={{ fontWeight: 600, color: '#006150' }}>{d.style_no}</span>
+                <span className="page-desc" style={{ margin: 0 }}>{d.brand} · {d.product_item} · {d.gender}</span>
+                <Tag color={STATUS_COLOR[d.status] || 'default'}>{d.status}</Tag>
+                <span className="page-desc" style={{ margin: 0 }}>{gr.rows.length} 次</span>
+              </Space>
+            ),
+            children: <IterList rows={gr.rows} />,
+          };
+        })} style={{ background: '#fff' }} />
+      )}
     </div>
   );
 
