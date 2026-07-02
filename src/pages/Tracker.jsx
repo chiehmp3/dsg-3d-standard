@@ -37,8 +37,8 @@ function useGroups(developments) {
     // 季節先後：春→夏→秋→冬（使用者按季節開發）
     const SEASON_RANK = { SP: 1, SS: 1, SU: 2, FA: 3, AU: 3, FW: 3, WI: 4, HO: 4 };
     const seasonRank = (s) => SEASON_RANK[String(s).replace(/\d{4}/, '').trim().toUpperCase()] ?? 9;
-    // 年份新到舊 → 同一年內依春夏秋冬
-    sOrder.sort((a, b) => (yearOf(b) - yearOf(a)) || (seasonRank(a) - seasonRank(b)) || String(a).localeCompare(String(b)));
+    // 時間軸順序：年份舊到新 → 同一年內依春夏秋冬（例：SP 2026 → SU 2026 → FA 2026 → SP 2027）
+    sOrder.sort((a, b) => (yearOf(a) - yearOf(b)) || (seasonRank(a) - seasonRank(b)) || String(a).localeCompare(String(b)));
     return { map, order, seasons, sOrder };
   }, [developments]);
 }
@@ -74,7 +74,7 @@ export default function TrackerPage({ data }) {
     return <Empty description="目前尚無開發資料。請在 Supabase 的 developments 表新增款式，這裡就會自動顯示。" />;
   }
 
-  // 款式進度：每個季度一個分頁；預設顯示最新一季
+  // 款式進度：每個季度一個分頁（依時間軸排序，最舊在前）
   const activeSeason = seasonTab && sOrder.includes(seasonTab) ? seasonTab : sOrder[0];
   const styles = (
     <div>
