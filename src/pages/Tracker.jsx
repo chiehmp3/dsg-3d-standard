@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
-import { Tabs, Tag, Empty, Card, Space } from 'antd';
+import { useMemo, useState, useEffect } from 'react';
+import { Tabs, Tag, Empty, Card, Space, Select, Button, Modal, Input, message } from 'antd';
+import { sb } from '../supabase';
 
-// 樣品狀態顏色
+// 樣品狀態下拉選項（與業務 Excel 的下拉一致，K2:K13）
+const STATUS_OPTIONS = ['待進單', '已進單', '待測布', '待進行', '進行中', '待業務確認', '待細節', '已完成', '已上傳', '已退單', '澄清中', '待完成檢查'];
 const STATUS_COLOR = {
-  已上傳: 'green', 已完成: 'blue', 已退單: 'red',
-  澄清中: 'orange', 待業務確認: 'orange', 待細節: 'orange',
-  進行中: 'blue', 待進單: 'default', 已進單: 'cyan',
+  待進單: 'default', 已進單: 'cyan', 待測布: 'gold', 待進行: 'default', 進行中: 'blue',
+  待業務確認: 'orange', 待細節: 'orange', 已完成: 'green', 已上傳: 'green', 已退單: 'red',
+  澄清中: 'purple', 待完成檢查: 'geekblue',
 };
 const statusLabel = (s) => (s && String(s).trim()) || '未上傳';
 const statusColor = (s) => STATUS_COLOR[statusLabel(s)] || 'default';
 
-// 季度排序：年份→季節(春夏秋冬)→季度Q，皆由舊到新
 const SEASON_RANK = { SP: 1, SS: 1, SU: 2, FA: 3, AU: 3, HO: 4, WI: 4 };
 function seasonSortVal(s) {
   const m = String(s).match(/([A-Za-z]{2})\s*(\d{2}).*?Q\s*(\d)/i);
@@ -21,21 +22,25 @@ function seasonCmp(a, b) {
   const A = seasonSortVal(a), B = seasonSortVal(b);
   return A[0] - B[0] || A[1] - B[1] || A[2] - B[2] || String(a).localeCompare(String(b));
 }
-
-// 依 key 分組並保留出現順序
 function groupBy(list, keyFn, fallback) {
   const g = {}, order = [];
   list.forEach((r) => { const k = keyFn(r) || fallback; if (!g[k]) { g[k] = []; order.push(k); } g[k].push(r); });
   return { g, order };
 }
 
-function StyleRow({ r, showSeason }) {
+function StatusCell({ r, value, editable, onChange, showSeason }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
       {r.style_no && <span className="mono" style={{ fontWeight: 600, color: '#006150', minWidth: 90 }}>{r.style_no}</span>}
-      <span style={{ flex: 1, minWidth: 180 }}>{r.style_name || r.product}</span>
+      <span style={{ flex: 1, minWidth: 160 }}>{r.style_name || r.product}</span>
       {showSeason && <Tag>{r.season}</Tag>}
-      <Tag color={statusColor(r.sample_status)}>{statusLabel(r.sample_status)}</Tag>
+      {editable ? (
+        <Select size="small" style={{ minWidth: 128 }} value={value || undefined} placeholder="未上傳" allowClear
+          options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
+          onChange={(v) => onChange(r, v ?? null)} />
+      ) : (
+        <Tag color={statusColor(value)}>{statusLabel(value)}</Tag>
+      )}
       {r.fabric && <span className="page-desc" style={{ margin: 0 }}>{r.fabric}</span>}
     </div>
   );
@@ -46,6 +51,36 @@ export default function TrackerPage({ data }) {
   const [seasonTab, setSeasonTab] = useState(null);
   const rows = data.sampleRequests || [];
 
+  // 登入狀態
+  const [session, setSession] = useState(null);
+  useEffect(() => {
+    sb.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  const loggedIn = !!session;
+
+  // 登入對話框
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const doLogin = async () => {
+    const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: pw });
+    if (error) { message.error('登入失敗：' + error.message); return; }
+    message.success('登入成功，現在可以編輯狀態'); setLoginOpen(false); setPw('');
+  };
+  const doLogout = async () => { await sb.auth.signOut(); message.info('已登出'); };
+
+  // 樣品狀態的本機覆蓋（編輯後即時反映，不必重載）
+  const [overrides, setOverrides] = useState({});
+  const effStatus = (r) => (Object.prototype.hasOwnProperty.call(overrides, r.id) ? overrides[r.id] : r.sample_status);
+  const saveStatus = async (r, v) => {
+    const { error } = await sb.from('sample_requests').update({ sample_status: v }).eq('id', r.id);
+    if (error) { message.error('儲存失敗：' + error.message); return; }
+    setOverrides((o) => ({ ...o, [r.id]: v }));
+    message.success(`${r.style_no || r.product}：${statusLabel(v)}`);
+  };
+
   const { g: bySeason, order: seasons } = useMemo(() => {
     const grp = groupBy(rows, (r) => r.season, '未分類');
     grp.order.sort(seasonCmp);
@@ -53,12 +88,11 @@ export default function TrackerPage({ data }) {
   }, [rows]);
 
   if (!rows.length) {
-    return <Empty description="目前尚無送樣資料。請先在 Supabase 跑 sample-requests-schema.sql 建表，再用「匯入開發追蹤.bat」灌入最新送樣清單。" />;
+    return <Empty description="目前尚無送樣資料。請先跑 sample-requests-schema.sql 建表，再用「匯入開發追蹤.bat」灌入。" />;
   }
 
   const activeSeason = seasonTab && seasons.includes(seasonTab) ? seasonTab : seasons[0];
 
-  // 款式進度：季度分頁 → 同季內依品牌分組
   const styles = (
     <div>
       <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
@@ -67,11 +101,11 @@ export default function TrackerPage({ data }) {
         const { g, order } = groupBy(bySeason[activeSeason], (r) => r.brand, '其他');
         return order.map((brand) => (
           <div key={brand} style={{ marginBottom: 18 }}>
-            <div style={{ fontWeight: 700, color: '#006150', margin: '10px 0 4px' }}>
-              {brand}　<Tag>{g[brand].length}</Tag>
-            </div>
+            <div style={{ fontWeight: 700, color: '#006150', margin: '10px 0 4px' }}>{brand}　<Tag>{g[brand].length}</Tag></div>
             <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
-              {g[brand].map((r) => <StyleRow key={r.id} r={r} />)}
+              {g[brand].map((r) => (
+                <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} />
+              ))}
             </div>
           </div>
         ));
@@ -79,21 +113,18 @@ export default function TrackerPage({ data }) {
     </div>
   );
 
-  // 季度摘要：每季各狀態數量
   const summary = (
     <div>
       {seasons.map((s) => {
         const list = bySeason[s];
-        const { g: byStatus } = groupBy(list, (r) => statusLabel(r.sample_status), '未上傳');
+        const { g: byStatus } = groupBy(list, (r) => statusLabel(effStatus(r)), '未上傳');
         const done = (byStatus['已上傳'] || []).length + (byStatus['已完成'] || []).length;
         const pct = Math.round((done / list.length) * 100);
         return (
           <Card key={s} size="small" style={{ marginBottom: 12 }}
-            title={<span>📅 {s}　<Tag color="green">{list.length} 款 · 已上傳 {pct}%</Tag></span>}>
+            title={<span>📅 {s}　<Tag color="green">{list.length} 款 · 已上傳/完成 {pct}%</Tag></span>}>
             <Space wrap>
-              {Object.keys(byStatus).map((st) => (
-                <Tag key={st} color={statusColor(st)}>{st} {byStatus[st].length}</Tag>
-              ))}
+              {Object.keys(byStatus).map((st) => (<Tag key={st} color={statusColor(st)}>{st} {byStatus[st].length}</Tag>))}
             </Space>
           </Card>
         );
@@ -101,25 +132,41 @@ export default function TrackerPage({ data }) {
     </div>
   );
 
-  // 待辦：尚未上傳/被退的款（跨季）
   const pending = rows
-    .filter((r) => !['已上傳', '已完成'].includes(statusLabel(r.sample_status)))
+    .filter((r) => !['已上傳', '已完成'].includes(statusLabel(effStatus(r))))
     .sort((a, b) => seasonCmp(a.season, b.season));
   const todo = pending.length ? (
     <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
-      {pending.map((r) => <StyleRow key={r.id} r={r} showSeason />)}
+      {pending.map((r) => (
+        <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} showSeason />
+      ))}
     </div>
   ) : <Empty description="目前所有款式都已上傳或完成 🎉" />;
 
   return (
     <div>
-      <p className="page-desc">各季送樣申請與狀態（資料來源：業務「3D Development Sample Request &amp; Status」，以一鍵工具同步）。</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <p className="page-desc" style={{ flex: 1 }}>各季送樣申請與狀態（來源：業務 Sample Request，以一鍵工具同步）。{loggedIn ? '登入中，可直接用下拉改狀態。' : '登入後可編輯狀態。'}</p>
+        {loggedIn ? (
+          <Space><span className="page-desc" style={{ margin: 0 }}>👤 {session.user.email}</span><Button size="small" onClick={doLogout}>登出</Button></Space>
+        ) : (
+          <Button size="small" onClick={() => setLoginOpen(true)}>🔒 登入以編輯</Button>
+        )}
+      </div>
+
       <Tabs activeKey={view} onChange={setView} items={[
         { key: 'styles', label: '📋 款式進度' },
         { key: 'summary', label: '📊 季度摘要' },
         { key: 'todo', label: '⏰ 待辦' },
       ]} />
       {view === 'styles' ? styles : view === 'summary' ? summary : todo}
+
+      <Modal title="登入以編輯狀態" open={loginOpen} onOk={doLogin} onCancel={() => setLoginOpen(false)} okText="登入" cancelText="取消">
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} onPressEnter={doLogin} />
+          <Input.Password placeholder="密碼" value={pw} onChange={(e) => setPw(e.target.value)} onPressEnter={doLogin} />
+        </Space>
+      </Modal>
     </div>
   );
 }
