@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Tabs, Tag, Empty, Card, Space, Select, Button, Modal, Input, message } from 'antd';
+import { Tabs, Tag, Empty, Card, Space, Select, Button, Modal, Input, Checkbox, message } from 'antd';
 import { sb } from '../supabase';
 
 // 樣品狀態下拉選項（與業務 Excel 的下拉一致，K2:K13）
@@ -32,16 +32,18 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
       {r.style_no && <span className="mono" style={{ fontWeight: 600, color: '#006150', minWidth: 90 }}>{r.style_no}</span>}
-      <span style={{ flex: 1, minWidth: 160 }}>{r.style_name || r.product}</span>
+      <span style={{ minWidth: 160 }}>{r.style_name || r.product}</span>
+      {r.fabric && <span className="page-desc" style={{ margin: 0 }}>🧵 {r.fabric}</span>}
       {showSeason && <Tag>{r.season}</Tag>}
-      {editable ? (
-        <Select size="small" style={{ minWidth: 128 }} value={value || undefined} placeholder="未上傳" allowClear
-          options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
-          onChange={(v) => onChange(r, v ?? null)} />
-      ) : (
-        <Tag color={statusColor(value)}>{statusLabel(value)}</Tag>
-      )}
-      {r.fabric && <span className="page-desc" style={{ margin: 0 }}>{r.fabric}</span>}
+      <div style={{ marginLeft: 'auto' }}>
+        {editable ? (
+          <Select size="small" style={{ minWidth: 128 }} value={value || undefined} placeholder="未上傳" allowClear
+            options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
+            onChange={(v) => onChange(r, v ?? null)} />
+        ) : (
+          <Tag color={statusColor(value)}>{statusLabel(value)}</Tag>
+        )}
+      </div>
     </div>
   );
 }
@@ -52,12 +54,18 @@ export default function TrackerPage({ data }) {
   // 篩選／排序（作用於目前季度）
   const [brandFilter, setBrandFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState([]);
+  const [fabricFilter, setFabricFilter] = useState([]);
   const [sortKey, setSortKey] = useState('default');
   const [search, setSearch] = useState('');
+  const [crossSeason, setCrossSeason] = useState(false);
   const rows = data.sampleRequests || [];
 
   const allBrands = useMemo(
     () => Array.from(new Set(rows.map((r) => r.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
+  const allFabrics = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.fabric).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [rows],
   );
 
@@ -108,47 +116,73 @@ export default function TrackerPage({ data }) {
     if (sortKey === 'style_desc') return [...arr].sort((a, b) => String(b.style_no || '').localeCompare(String(a.style_no || '')));
     return arr; // 預設＝原順序
   };
+  const applyFilters = (list) => {
+    let out = list;
+    if (brandFilter.length) out = out.filter((r) => brandFilter.includes(r.brand));
+    if (statusFilter.length) out = out.filter((r) => statusFilter.includes(statusLabel(effStatus(r))));
+    if (fabricFilter.length) out = out.filter((r) => fabricFilter.includes(r.fabric));
+    const q = search.trim().toLowerCase();
+    if (q) out = out.filter((r) => `${r.style_no || ''} ${r.product || ''} ${r.style_name || ''} ${r.fabric || ''}`.toLowerCase().includes(q));
+    return out;
+  };
+  const renderBrandGroups = (list) => {
+    const { g, order } = groupBy(list, (r) => r.brand, '其他');
+    return order.map((brand) => (
+      <div key={brand} style={{ marginBottom: 18 }}>
+        <div style={{ fontWeight: 700, color: '#006150', margin: '10px 0 4px' }}>{brand}　<Tag>{g[brand].length}</Tag></div>
+        <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
+          {sortList(g[brand]).map((r) => (
+            <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} showSeason={crossSeason} />
+          ))}
+        </div>
+      </div>
+    ));
+  };
   const filterBar = (
     <Space wrap style={{ margin: '12px 0' }}>
       <Select mode="multiple" allowClear placeholder="品牌（全部）" value={brandFilter} onChange={setBrandFilter}
-        style={{ minWidth: 200 }} maxTagCount="responsive"
+        style={{ minWidth: 180 }} maxTagCount="responsive"
         options={allBrands.map((b) => ({ value: b, label: b }))} />
       <Select mode="multiple" allowClear placeholder="狀態（全部）" value={statusFilter} onChange={setStatusFilter}
-        style={{ minWidth: 180 }} maxTagCount="responsive"
+        style={{ minWidth: 160 }} maxTagCount="responsive"
         options={[...STATUS_OPTIONS, '未上傳'].map((s) => ({ value: s, label: s }))} />
+      <Select mode="multiple" allowClear placeholder="布料（全部）" value={fabricFilter} onChange={setFabricFilter}
+        style={{ minWidth: 180 }} maxTagCount="responsive" showSearch optionFilterProp="label"
+        options={allFabrics.map((f) => ({ value: f, label: f }))} />
       <Select value={sortKey} onChange={setSortKey} style={{ minWidth: 130 }}
         options={[
           { value: 'default', label: '排序：預設' },
           { value: 'style', label: '款號 A→Z' },
           { value: 'style_desc', label: '款號 Z→A' },
         ]} />
-      <Input allowClear placeholder="搜尋款號 / 品名" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 200 }} />
+      <Input allowClear placeholder="搜尋款號 / 品名 / 布料" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 220 }} />
+      <Checkbox checked={crossSeason} onChange={(e) => setCrossSeason(e.target.checked)}>跨所有季度</Checkbox>
     </Space>
   );
 
   const styles = (
     <div>
-      <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
-        items={seasons.map((s) => ({ key: s, label: `📅 ${s}（${bySeason[s].length}）` }))} />
+      {!crossSeason && (
+        <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
+          items={seasons.map((s) => ({ key: s, label: `📅 ${s}（${bySeason[s].length}）` }))} />
+      )}
       {filterBar}
-      {activeSeason && (() => {
-        let list = bySeason[activeSeason];
-        if (brandFilter.length) list = list.filter((r) => brandFilter.includes(r.brand));
-        if (statusFilter.length) list = list.filter((r) => statusFilter.includes(statusLabel(effStatus(r))));
-        const q = search.trim().toLowerCase();
-        if (q) list = list.filter((r) => `${r.style_no || ''} ${r.product || ''} ${r.style_name || ''}`.toLowerCase().includes(q));
-        if (!list.length) return <Empty description="這一季沒有符合條件的款式" />;
-        const { g, order } = groupBy(list, (r) => r.brand, '其他');
-        return order.map((brand) => (
-          <div key={brand} style={{ marginBottom: 18 }}>
-            <div style={{ fontWeight: 700, color: '#006150', margin: '10px 0 4px' }}>{brand}　<Tag>{g[brand].length}</Tag></div>
-            <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
-              {sortList(g[brand]).map((r) => (
-                <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} />
-              ))}
+      {(() => {
+        if (crossSeason) {
+          const list = applyFilters(rows);
+          if (!list.length) return <Empty description="沒有符合條件的款式" />;
+          const { g, order } = groupBy(list, (r) => r.season, '未分類');
+          order.sort(seasonCmp);
+          return order.map((s) => (
+            <div key={s} style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, margin: '6px 0' }}>📅 {s}　<Tag>{g[s].length}</Tag></div>
+              {renderBrandGroups(g[s])}
             </div>
-          </div>
-        ));
+          ));
+        }
+        const list = applyFilters(bySeason[activeSeason] || []);
+        if (!list.length) return <Empty description="這一季沒有符合條件的款式" />;
+        return renderBrandGroups(list);
       })()}
     </div>
   );
