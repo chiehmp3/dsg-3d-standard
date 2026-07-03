@@ -6,6 +6,7 @@ import SectionPage from './pages/Section';
 import ChecklistPage from './pages/Checklist';
 import AvatarPage from './pages/Avatar';
 import TrackerPage from './pages/Tracker';
+import DatabasePage from './pages/Database';
 import ContactsPage from './pages/Contacts';
 import SearchPage from './pages/Search';
 
@@ -69,6 +70,7 @@ export default function App() {
     if (section.slug === 'checklist') body = <ChecklistPage section={section} data={data} />;
     else if (section.slug === 'avatar') body = <AvatarPage section={section} data={data} />;
     else if (section.slug === 'tracker-info') body = <TrackerPage section={section} data={data} />;
+    else if (section.slug === 'database') body = <DatabasePage section={section} data={data} />;
     else body = <SectionPage section={section} data={data} />;
     return (
       <>

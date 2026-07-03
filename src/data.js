@@ -2,13 +2,14 @@ import { sb } from './supabase';
 
 // 一次載入全部資料表（與舊版相同）
 export async function loadAll() {
-  const [sections, entries, contacts, avatars, developments, sampleRequests] = await Promise.all([
+  const [sections, entries, contacts, avatars, developments, sampleRequests, appSettings] = await Promise.all([
     sb.from('sections').select('*').order('sort_order'),
     sb.from('entries').select('*').order('sort_order'),
     sb.from('contacts').select('*').order('sort_order'),
     sb.from('avatars').select('*').order('sort_order'),
     sb.from('developments').select('*').order('sort_order'),
     sb.from('sample_requests').select('*').order('sort_order'),
+    sb.from('app_settings').select('*'),
   ]);
   return {
     sections: sections.data || [],
@@ -17,6 +18,7 @@ export async function loadAll() {
     avatars: avatars.data || [],
     developments: developments.data || [],
     sampleRequests: sampleRequests.data || [],
+    settings: Object.fromEntries((appSettings.data || []).map((r) => [r.key, r.value])),
     error: sections.error || entries.error || contacts.error || null,
   };
 }
