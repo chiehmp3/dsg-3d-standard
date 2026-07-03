@@ -1,5 +1,5 @@
 import { Tag, Typography, Image, Button } from 'antd';
-import { LinkOutlined, MailOutlined } from '@ant-design/icons';
+import { LinkOutlined, MailOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { imgUrl, SOURCE_TAG } from '../theme';
 
 // 內文中的網址自動變連結
@@ -18,6 +18,8 @@ function PathRow({ raw }) {
   const value = hasSep ? raw.split('｜').slice(1).join('｜').trim() : raw.trim();
   const isUrl = value.startsWith('http');
   const isMail = value.includes('@') && !isUrl;
+  const isPath = /^\\\\/.test(value) || /^[a-zA-Z]:\\/.test(value); // UNC 或本機路徑
+  const fileHref = isPath ? 'file://' + value.replace(/^\\\\/, '').replace(/\\/g, '/') : null;
   return (
     <div className="path-row">
       {label && <span style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, minWidth: 120 }}>{label}</span>}
@@ -30,6 +32,11 @@ function PathRow({ raw }) {
         <>
           <Button size="small" icon={<MailOutlined />} href={`mailto:${value}`}>寄信</Button>
           <span className="path-val">{value}</span>
+        </>
+      ) : isPath ? (
+        <>
+          <Button size="small" icon={<FolderOpenOutlined />} href={fileHref} target="_blank">開啟</Button>
+          <Typography.Text className="path-val" copyable={{ text: value }}>{value}</Typography.Text>
         </>
       ) : (
         <Typography.Text className="path-val" copyable={{ text: value }}>{value}</Typography.Text>
