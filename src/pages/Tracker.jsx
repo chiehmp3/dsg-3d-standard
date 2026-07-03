@@ -156,7 +156,7 @@ export default function TrackerPage({ data }) {
           { value: 'style_desc', label: '款號 Z→A' },
         ]} />
       <Input allowClear placeholder="搜尋款號 / 品名 / 布料" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 220 }} />
-      <Checkbox checked={crossSeason} onChange={(e) => setCrossSeason(e.target.checked)}>跨所有季度</Checkbox>
+      {view === 'styles' && <Checkbox checked={crossSeason} onChange={(e) => setCrossSeason(e.target.checked)}>跨所有季度</Checkbox>}
     </Space>
   );
 
@@ -166,7 +166,6 @@ export default function TrackerPage({ data }) {
         <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
           items={seasons.map((s) => ({ key: s, label: `📅 ${s}（${bySeason[s].length}）` }))} />
       )}
-      {filterBar}
       {(() => {
         if (crossSeason) {
           const list = applyFilters(rows);
@@ -187,28 +186,32 @@ export default function TrackerPage({ data }) {
     </div>
   );
 
-  const summary = (
-    <div>
-      {seasons.map((s) => {
-        const list = bySeason[s];
-        const { g: byStatus } = groupBy(list, (r) => statusLabel(effStatus(r)), '未上傳');
-        const done = (byStatus['已上傳'] || []).length + (byStatus['已完成'] || []).length;
-        const pct = Math.round((done / list.length) * 100);
-        return (
-          <Card key={s} size="small" style={{ marginBottom: 12 }}
-            title={<span>📅 {s}　<Tag color="green">{list.length} 款 · 已上傳/完成 {pct}%</Tag></span>}>
-            <Space wrap>
-              {Object.keys(byStatus).map((st) => (<Tag key={st} color={statusColor(st)}>{st} {byStatus[st].length}</Tag>))}
-            </Space>
-          </Card>
-        );
-      })}
-    </div>
-  );
+  const summary = (() => {
+    const shown = seasons.map((s) => ({ s, list: applyFilters(bySeason[s]) })).filter((x) => x.list.length);
+    if (!shown.length) return <Empty description="沒有符合條件的款式" />;
+    return (
+      <div>
+        {shown.map(({ s, list }) => {
+          const { g: byStatus } = groupBy(list, (r) => statusLabel(effStatus(r)), '未上傳');
+          const done = (byStatus['已上傳'] || []).length + (byStatus['已完成'] || []).length;
+          const pct = Math.round((done / list.length) * 100);
+          return (
+            <Card key={s} size="small" style={{ marginBottom: 12 }}
+              title={<span>📅 {s}　<Tag color="green">{list.length} 款 · 已上傳/完成 {pct}%</Tag></span>}>
+              <Space wrap>
+                {Object.keys(byStatus).map((st) => (<Tag key={st} color={statusColor(st)}>{st} {byStatus[st].length}</Tag>))}
+              </Space>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  })();
 
-  const pending = rows
-    .filter((r) => !['已上傳', '已完成'].includes(statusLabel(effStatus(r))))
-    .sort((a, b) => seasonCmp(a.season, b.season));
+  const pendingBase = applyFilters(rows.filter((r) => !['已上傳', '已完成'].includes(statusLabel(effStatus(r)))));
+  const pending = sortKey === 'default'
+    ? [...pendingBase].sort((a, b) => seasonCmp(a.season, b.season))
+    : sortList(pendingBase);
   const todo = pending.length ? (
     <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
       {pending.map((r) => (
@@ -233,6 +236,7 @@ export default function TrackerPage({ data }) {
         { key: 'summary', label: '📊 季度摘要' },
         { key: 'todo', label: '⏰ 待辦' },
       ]} />
+      {filterBar}
       {view === 'styles' ? styles : view === 'summary' ? summary : todo}
 
       <Modal title="登入以編輯狀態" open={loginOpen} onOk={doLogin} onCancel={() => setLoginOpen(false)} okText="登入" cancelText="取消">
