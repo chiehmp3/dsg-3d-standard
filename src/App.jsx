@@ -9,6 +9,7 @@ import TrackerPage from './pages/Tracker';
 import DatabasePage from './pages/Database';
 import ContactsPage from './pages/Contacts';
 import SearchPage from './pages/Search';
+import MessageBoardPage from './pages/MessageBoard';
 
 const { Sider, Header, Content } = Layout;
 
@@ -63,7 +64,7 @@ export default function App() {
   const renderContent = () => {
     if (query.trim()) return <SearchPage data={data} query={query} onOpen={(s) => { setQuery(''); setSlug(s); }} />;
     if (slug === 'contacts') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>👥 聯絡人</h1><ContactsPage data={data} /></>;
-    if (slug === 'feedback') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>💬 留言板</h1><Alert type="info" showIcon message="留言板功能將在下一階段加入 😊" /></>;
+    if (slug === 'feedback') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>💬 留言板</h1><MessageBoardPage /></>;
     const section = data.sections.find((s) => s.slug === slug);
     if (!section) return <Empty description="找不到此分類" />;
     let body;
