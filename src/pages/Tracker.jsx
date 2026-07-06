@@ -35,7 +35,8 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
       <span style={{ minWidth: 160 }}>{r.style_name || r.product}</span>
       {r.fabric && <span className="page-desc" style={{ margin: 0 }}>🧵 {r.fabric}</span>}
       {showSeason && <Tag>{r.season}</Tag>}
-      <div style={{ marginLeft: 'auto' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {r.sample_due && <span className="page-desc" style={{ margin: 0 }}>交期 {r.sample_due}</span>}
         {editable ? (
           <Select size="small" style={{ minWidth: 128 }} value={value || undefined} placeholder="未上傳" allowClear
             options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
@@ -56,6 +57,7 @@ export default function TrackerPage({ data }) {
   const [brandFilter, setBrandFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState([]);
   const [fabricFilter, setFabricFilter] = useState([]);
+  const [dueFilter, setDueFilter] = useState([]);
   const [sortKey, setSortKey] = useState('default');
   const [search, setSearch] = useState('');
   const [crossSeason, setCrossSeason] = useState(false);
@@ -67,6 +69,10 @@ export default function TrackerPage({ data }) {
   );
   const allFabrics = useMemo(
     () => Array.from(new Set(rows.map((r) => r.fabric).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
+  const allDueDates = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.sample_due).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b))),
     [rows],
   );
 
@@ -125,6 +131,7 @@ export default function TrackerPage({ data }) {
     if (brandFilter.length) out = out.filter((r) => brandFilter.includes(r.brand));
     if (statusFilter.length) out = out.filter((r) => statusFilter.includes(statusLabel(effStatus(r))));
     if (fabricFilter.length) out = out.filter((r) => fabricFilter.includes(r.fabric));
+    if (dueFilter.length) out = out.filter((r) => dueFilter.includes(r.sample_due));
     const q = search.trim().toLowerCase();
     if (q) out = out.filter((r) => `${r.style_no || ''} ${r.product || ''} ${r.style_name || ''} ${r.fabric || ''}`.toLowerCase().includes(q));
     return out;
@@ -156,6 +163,9 @@ export default function TrackerPage({ data }) {
       <Select mode="multiple" allowClear placeholder="布料（全部）" value={fabricFilter} onChange={setFabricFilter}
         style={{ minWidth: 180 }} maxTagCount="responsive" showSearch optionFilterProp="label"
         options={allFabrics.map((f) => ({ value: f, label: f }))} />
+      <Select mode="multiple" allowClear placeholder="交期（全部）" value={dueFilter} onChange={setDueFilter}
+        style={{ minWidth: 170 }} maxTagCount="responsive" showSearch optionFilterProp="label"
+        options={allDueDates.map((d) => ({ value: d, label: d }))} />
       <Select value={sortKey} onChange={setSortKey} style={{ minWidth: 130 }}
         options={[
           { value: 'default', label: '排序：預設' },
