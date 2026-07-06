@@ -1,11 +1,42 @@
-import { useMemo, useState } from 'react';
-import { Collapse, Button, Space, Empty, Modal, Input, App } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Collapse, Menu, Button, Space, Empty, Modal, Input, App } from 'antd';
 import { SwapOutlined, LockOutlined, HolderOutlined } from '@ant-design/icons';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { groupByName } from '../data';
 import { CardHeader, CardBody } from '../components/CardItem';
+
+// Prefit／細節：卡片多，全部展開會太長，改用左側分頁＋右側單一內容檢視
+const TAB_LAYOUT_SLUGS = ['prefit', 'construction'];
+
+// 分頁式檢視：左側依 group_name 分組的可捲動選單，右側只顯示目前選到那一張卡的內容
+function TabReadView({ entries }) {
+  const groups = useMemo(() => groupByName(entries), [entries]);
+  const [activeId, setActiveId] = useState(entries[0]?.id);
+  useEffect(() => {
+    if (!entries.some((e) => e.id === activeId)) setActiveId(entries[0]?.id);
+  }, [entries]);
+  if (!entries.length) return <Empty description="此分類尚無內容" />;
+  const active = entries.find((e) => e.id === activeId) || entries[0];
+  const menuItems = groups.map((g, gi) => ({
+    key: g.name || `_group_${gi}`,
+    type: 'group',
+    label: g.name || undefined,
+    children: g.items.map((e) => ({ key: e.id, label: <CardHeader entry={e} /> })),
+  }));
+  return (
+    <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 260px)', minHeight: 420 }}>
+      <div style={{ width: 280, flexShrink: 0, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
+        <Menu mode="inline" selectedKeys={[active.id]} items={menuItems}
+          onClick={({ key }) => setActiveId(key)} style={{ borderInlineEnd: 'none' }} />
+      </div>
+      <div style={{ flex: 1, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: '16px 20px' }}>
+        <CardBody entry={active} />
+      </div>
+    </div>
+  );
+}
 
 // 一般（唯讀）檢視：依 group_name 分子群組，每群組一個 Collapse
 function ReadView({ entries }) {
@@ -99,6 +130,8 @@ export default function SectionPage({ section, data }) {
             {orderedEntries.map((e) => <SortableRow key={e.id} entry={e} />)}
           </SortableContext>
         </DndContext>
+      ) : TAB_LAYOUT_SLUGS.includes(section.slug) ? (
+        <TabReadView entries={entries} />
       ) : (
         <ReadView entries={entries} />
       )}
