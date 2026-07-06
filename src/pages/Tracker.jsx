@@ -12,6 +12,12 @@ const STATUS_COLOR = {
 const statusLabel = (s) => (s && String(s).trim()) || '未上傳';
 const statusColor = (s) => STATUS_COLOR[statusLabel(s)] || 'default';
 
+// 篩選／排序記在瀏覽器 localStorage，離開頁面再回來不會重置
+const TRACKER_FILTERS_KEY = 'dsg-tracker-filters';
+function loadSavedFilters() {
+  try { return JSON.parse(localStorage.getItem(TRACKER_FILTERS_KEY)) || {}; } catch { return {}; }
+}
+
 const SEASON_RANK = { SP: 1, SS: 1, SU: 2, FA: 3, AU: 3, HO: 4, WI: 4 };
 function seasonSortVal(s) {
   const m = String(s).match(/([A-Za-z]{2})\s*(\d{2}).*?Q\s*(\d)/i);
@@ -50,17 +56,23 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
 }
 
 export default function TrackerPage({ data }) {
-  const [view, setView] = useState('styles');
-  const [seasonTab, setSeasonTab] = useState(null);
-  // 篩選／排序（作用於目前季度）
-  const [seasonFilter, setSeasonFilter] = useState([]);
-  const [brandFilter, setBrandFilter] = useState([]);
-  const [statusFilter, setStatusFilter] = useState([]);
-  const [fabricFilter, setFabricFilter] = useState([]);
-  const [dueFilter, setDueFilter] = useState([]);
-  const [sortKey, setSortKey] = useState('default');
-  const [search, setSearch] = useState('');
-  const [crossSeason, setCrossSeason] = useState(false);
+  const saved = loadSavedFilters();
+  const [view, setView] = useState(saved.view || 'styles');
+  const [seasonTab, setSeasonTab] = useState(saved.seasonTab ?? null);
+  // 篩選／排序（作用於目前季度，記在瀏覽器 localStorage，重整/切頁不會不見）
+  const [seasonFilter, setSeasonFilter] = useState(saved.seasonFilter || []);
+  const [brandFilter, setBrandFilter] = useState(saved.brandFilter || []);
+  const [statusFilter, setStatusFilter] = useState(saved.statusFilter || []);
+  const [fabricFilter, setFabricFilter] = useState(saved.fabricFilter || []);
+  const [dueFilter, setDueFilter] = useState(saved.dueFilter || []);
+  const [sortKey, setSortKey] = useState(saved.sortKey || 'default');
+  const [search, setSearch] = useState(saved.search || '');
+  const [crossSeason, setCrossSeason] = useState(saved.crossSeason || false);
+  useEffect(() => {
+    localStorage.setItem(TRACKER_FILTERS_KEY, JSON.stringify({
+      view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason,
+    }));
+  }, [view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason]);
   const rows = data.sampleRequests || [];
 
   const allBrands = useMemo(
