@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Empty, Input, Button, Space, Modal, message } from 'antd';
+import { Empty, Input, Button, Space, Modal, Select, Tag, message } from 'antd';
 import { sb } from '../supabase';
+
+const DEPARTMENT_OPTIONS = ['開發處內部', '業務', 'DPC', '客人', '其他'];
+const DEPARTMENT_COLOR = { 開發處內部: 'blue', 業務: 'orange', DPC: 'purple', 客人: 'green', 其他: 'default' };
 
 export default function MessageBoardPage() {
   const [rows, setRows] = useState([]);
@@ -34,11 +37,12 @@ export default function MessageBoardPage() {
 
   // 發文
   const [authorName, setAuthorName] = useState('');
+  const [department, setDepartment] = useState();
   const [content, setContent] = useState('');
   const submit = async () => {
     const name = authorName.trim(), text = content.trim();
-    if (!name || !text) { message.warning('請輸入姓名與內容'); return; }
-    const { data, error } = await sb.from('messages').insert({ author_name: name, content: text }).select().single();
+    if (!name || !department || !text) { message.warning('請輸入姓名、部門與內容'); return; }
+    const { data, error } = await sb.from('messages').insert({ author_name: name, department, content: text }).select().single();
     if (error) { message.error('送出失敗：' + error.message); return; }
     setRows((r) => [data, ...(r || [])]);
     setContent('');
@@ -64,7 +68,11 @@ export default function MessageBoardPage() {
       </div>
 
       <Space direction="vertical" style={{ width: '100%', margin: '12px 0' }}>
-        <Input placeholder="你的姓名" value={authorName} onChange={(e) => setAuthorName(e.target.value)} maxLength={50} style={{ maxWidth: 240 }} />
+        <Space wrap>
+          <Input placeholder="你的姓名" value={authorName} onChange={(e) => setAuthorName(e.target.value)} maxLength={50} style={{ width: 200 }} />
+          <Select placeholder="選擇部門" value={department} onChange={setDepartment} style={{ width: 160 }}
+            options={DEPARTMENT_OPTIONS.map((d) => ({ value: d, label: d }))} />
+        </Space>
         <Input.TextArea placeholder="留言內容…" value={content} onChange={(e) => setContent(e.target.value)} maxLength={2000} rows={3} />
         <Button type="primary" onClick={submit}>送出</Button>
       </Space>
@@ -78,6 +86,7 @@ export default function MessageBoardPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                   <span style={{ fontWeight: 600 }}>{m.author_name}</span>
+                  {m.department && <Tag color={DEPARTMENT_COLOR[m.department] || 'default'}>{m.department}</Tag>}
                   <span className="page-desc" style={{ margin: 0, fontSize: 12 }}>{new Date(m.created_at).toLocaleString()}</span>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
