@@ -52,6 +52,7 @@ export default function TrackerPage({ data }) {
   const [view, setView] = useState('styles');
   const [seasonTab, setSeasonTab] = useState(null);
   // 篩選／排序（作用於目前季度）
+  const [seasonFilter, setSeasonFilter] = useState([]);
   const [brandFilter, setBrandFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState([]);
   const [fabricFilter, setFabricFilter] = useState([]);
@@ -109,7 +110,9 @@ export default function TrackerPage({ data }) {
     return <Empty description="目前尚無送樣資料。請先跑 sample-requests-schema.sql 建表，再用「匯入開發追蹤.bat」灌入。" />;
   }
 
-  const activeSeason = seasonTab && seasons.includes(seasonTab) ? seasonTab : seasons[0];
+  // 款式進度的季度分頁清單跟著季度篩選走（避免兩個季度選擇器衝突）
+  const visibleSeasons = seasonFilter.length ? seasons.filter((s) => seasonFilter.includes(s)) : seasons;
+  const activeSeason = seasonTab && visibleSeasons.includes(seasonTab) ? seasonTab : visibleSeasons[0];
 
   const sortList = (arr) => {
     if (sortKey === 'style') return [...arr].sort((a, b) => String(a.style_no || '').localeCompare(String(b.style_no || '')));
@@ -118,6 +121,7 @@ export default function TrackerPage({ data }) {
   };
   const applyFilters = (list) => {
     let out = list;
+    if (seasonFilter.length) out = out.filter((r) => seasonFilter.includes(r.season));
     if (brandFilter.length) out = out.filter((r) => brandFilter.includes(r.brand));
     if (statusFilter.length) out = out.filter((r) => statusFilter.includes(statusLabel(effStatus(r))));
     if (fabricFilter.length) out = out.filter((r) => fabricFilter.includes(r.fabric));
@@ -140,6 +144,9 @@ export default function TrackerPage({ data }) {
   };
   const filterBar = (
     <Space wrap style={{ margin: '12px 0' }}>
+      <Select mode="multiple" allowClear placeholder="季度（全部）" value={seasonFilter} onChange={setSeasonFilter}
+        style={{ minWidth: 180 }} maxTagCount="responsive"
+        options={seasons.map((s) => ({ value: s, label: s }))} />
       <Select mode="multiple" allowClear placeholder="品牌（全部）" value={brandFilter} onChange={setBrandFilter}
         style={{ minWidth: 180 }} maxTagCount="responsive"
         options={allBrands.map((b) => ({ value: b, label: b }))} />
@@ -164,7 +171,7 @@ export default function TrackerPage({ data }) {
     <div>
       {!crossSeason && (
         <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
-          items={seasons.map((s) => ({ key: s, label: `📅 ${s}（${bySeason[s].length}）` }))} />
+          items={visibleSeasons.map((s) => ({ key: s, label: `📅 ${s}（${bySeason[s].length}）` }))} />
       )}
       {(() => {
         if (crossSeason) {
