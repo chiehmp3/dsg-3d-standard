@@ -38,7 +38,12 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
       {r.style_no && <span className="mono" style={{ fontWeight: 600, color: '#006150', minWidth: 90 }}>{r.style_no}</span>}
-      <span style={{ minWidth: 160 }}>{r.style_name || r.product}</span>
+      <span
+        title={r.style_name || r.product}
+        style={{ width: 220, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {r.style_name || r.product}
+      </span>
       {r.fabric && <span className="page-desc" style={{ margin: 0 }}>🧵 {r.fabric}</span>}
       {showSeason && <Tag>{r.season}</Tag>}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
