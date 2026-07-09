@@ -66,18 +66,18 @@ export function CardBody({ entry }) {
   return (
     <div>
       {hasContent && <div className="card-content">{linkify(entry.content)}</div>}
+      {paths.length > 0 && (
+        <div style={{ marginTop: hasContent ? 12 : 0 }}>
+          {paths.map((p, i) => <PathRow key={i} raw={p} />)}
+        </div>
+      )}
       {images.length > 0 && (
-        <div className="card-imgs">
+        <div className="card-imgs" style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
           <Image.PreviewGroup>
             {images.map((p, i) => (
               <Image key={i} src={imgUrl(p)} style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }} />
             ))}
           </Image.PreviewGroup>
-        </div>
-      )}
-      {paths.length > 0 && (
-        <div style={{ marginTop: hasContent || images.length ? 12 : 0 }}>
-          {paths.map((p, i) => <PathRow key={i} raw={p} />)}
         </div>
       )}
     </div>
