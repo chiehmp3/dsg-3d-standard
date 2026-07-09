@@ -2,14 +2,17 @@ import { Tag, Typography, Image, Button, message } from 'antd';
 import { LinkOutlined, MailOutlined, CopyOutlined } from '@ant-design/icons';
 import { imgUrl, SOURCE_TAG } from '../theme';
 
-// 內文中的網址自動變連結
+// 內文中的網址自動變連結；**文字** 變粗體
 function linkify(text) {
   const parts = String(text).split(/(https?:\/\/[^\s]+)/g);
-  return parts.map((p, i) =>
-    /^https?:\/\//.test(p)
-      ? <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a>
-      : <span key={i}>{p}</span>,
-  );
+  return parts.map((p, i) => {
+    if (/^https?:\/\//.test(p)) return <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a>;
+    const boldParts = p.split(/(\*\*[^*]+\*\*)/g);
+    return <span key={i}>{boldParts.map((bp, j) => {
+      const m = bp.match(/^\*\*([^*]+)\*\*$/);
+      return m ? <strong key={j}>{m[1]}</strong> : bp;
+    })}</span>;
+  });
 }
 
 function PathRow({ raw }) {
