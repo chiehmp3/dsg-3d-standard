@@ -1,5 +1,5 @@
-import { Tag, Typography, Image, Button } from 'antd';
-import { LinkOutlined, MailOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { Tag, Typography, Image, Button, message } from 'antd';
+import { LinkOutlined, MailOutlined, CopyOutlined } from '@ant-design/icons';
 import { imgUrl, SOURCE_TAG } from '../theme';
 
 // 內文中的網址自動變連結
@@ -19,7 +19,8 @@ function PathRow({ raw }) {
   const isUrl = value.startsWith('http');
   const isMail = value.includes('@') && !isUrl;
   const isPath = /^\\\\/.test(value) || /^[a-zA-Z]:\\/.test(value); // UNC 或本機路徑
-  const fileHref = isPath ? 'file://' + value.replace(/^\\\\/, '').replace(/\\/g, '/') : null;
+  // 瀏覽器基於安全性會擋掉 file:// 連結導覽，網路路徑無法用按鈕直接開啟，改成一鍵複製路徑貼到檔案總管
+  const copyPath = () => { navigator.clipboard.writeText(value); message.success('已複製路徑，貼到檔案總管網址列即可開啟'); };
   return (
     <div className="path-row">
       {label && <span style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, minWidth: 120 }}>{label}</span>}
@@ -35,8 +36,8 @@ function PathRow({ raw }) {
         </>
       ) : isPath ? (
         <>
-          <Button size="small" icon={<FolderOpenOutlined />} href={fileHref} target="_blank">開啟</Button>
-          <Typography.Text className="path-val" copyable={{ text: value }}>{value}</Typography.Text>
+          <Button size="small" icon={<CopyOutlined />} onClick={copyPath}>複製路徑</Button>
+          <span className="path-val">{value}</span>
         </>
       ) : (
         <Typography.Text className="path-val" copyable={{ text: value }}>{value}</Typography.Text>

@@ -8,8 +8,8 @@ import { groupByName } from '../data';
 import { CardHeader, CardBody } from '../components/CardItem';
 import { SOURCE_TAG } from '../theme';
 
-// Prefit／細節：卡片多，全部展開會太長，改用左側分頁＋右側單一內容檢視
-const TAB_LAYOUT_SLUGS = ['prefit', 'construction'];
+// Bible（原 Prefit＋細節合併）、Prefit流程：卡片多，全部展開會太長，改用左側分頁＋右側單一內容檢視
+const TAB_LAYOUT_SLUGS = ['prefit', 'prefit-flow'];
 
 // 左側選單的精簡標籤：單行截斷＋來源標籤靠右，避免在窄欄位裡被擠成兩三行
 function TabLabel({ entry }) {
