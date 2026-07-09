@@ -75,7 +75,7 @@ export function CardBody({ entry }) {
         <div className="card-imgs" style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
           <Image.PreviewGroup>
             {images.map((p, i) => (
-              <Image key={i} src={imgUrl(p)} style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }} />
+              <Image key={i} src={imgUrl(p)} style={{ maxWidth: '100%', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }} />
             ))}
           </Image.PreviewGroup>
         </div>

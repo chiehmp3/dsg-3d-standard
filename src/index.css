@@ -23,4 +23,4 @@ body { font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI
   color: #fff; background: #006150; padding: 4px 10px; border-radius: 4px;
 }
 
-.card-imgs { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.card-imgs { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
