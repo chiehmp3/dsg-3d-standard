@@ -242,7 +242,30 @@ export default function TrackerPage({ data }) {
       { title: '合計', key: 'total', align: 'center', render: (_, r) => <b>{r.total}</b> },
       { title: '完成率', key: 'pct', align: 'center', render: (_, r) => <Tag color="green">{r.pct}%</Tag> },
     ];
-    return <Table size="small" pagination={false} rowKey="season" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: '#fff' }} />;
+    return (
+      <Table
+        size="small" pagination={false} rowKey="season" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: '#fff' }}
+        summary={() => {
+          const totalByStatus = {};
+          usedStatuses.forEach((st) => { totalByStatus[st] = rowsData.reduce((sum, r) => sum + (r.byStatus[st] || []).length, 0); });
+          const grandTotal = rowsData.reduce((sum, r) => sum + r.total, 0);
+          const doneTotal = (totalByStatus['已上傳'] || 0) + (totalByStatus['已完成'] || 0);
+          const grandPct = grandTotal ? Math.round((doneTotal / grandTotal) * 100) : 0;
+          return (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}><b>總計</b></Table.Summary.Cell>
+              {usedStatuses.map((st, i) => (
+                <Table.Summary.Cell key={st} index={i + 1} align="center">
+                  {totalByStatus[st] ? <Tag color={statusColor(st)}>{totalByStatus[st]}</Tag> : <span style={{ color: '#ccc' }}>–</span>}
+                </Table.Summary.Cell>
+              ))}
+              <Table.Summary.Cell index={usedStatuses.length + 1} align="center"><b>{grandTotal}</b></Table.Summary.Cell>
+              <Table.Summary.Cell index={usedStatuses.length + 2} align="center"><Tag color="green">{grandPct}%</Tag></Table.Summary.Cell>
+            </Table.Summary.Row>
+          );
+        }}
+      />
+    );
   })();
 
   const pendingBase = applyFilters(rows.filter((r) => !['已上傳', '已完成'].includes(statusLabel(effStatus(r)))));
