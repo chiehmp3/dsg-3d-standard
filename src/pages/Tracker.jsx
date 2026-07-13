@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Tabs, Tag, Empty, Card, Space, Select, Button, Modal, Input, Checkbox, message } from 'antd';
+import { Tabs, Tag, Empty, Table, Space, Select, Button, Modal, Input, Checkbox, message } from 'antd';
 import { sb } from '../supabase';
 
 // 樣品狀態下拉選項（與業務 Excel 的下拉一致，K2:K13）
@@ -220,26 +220,29 @@ export default function TrackerPage({ data }) {
     </div>
   );
 
+  // 樞紐表：一列一季度，欄位＝有出現過的狀態（只顯示有資料的狀態，避免全零欄位塞滿報表）
   const summary = (() => {
     const shown = seasons.map((s) => ({ s, list: applyFilters(bySeason[s]) })).filter((x) => x.list.length);
     if (!shown.length) return <Empty description="沒有符合條件的款式" />;
-    return (
-      <div>
-        {shown.map(({ s, list }) => {
-          const { g: byStatus } = groupBy(list, (r) => statusLabel(effStatus(r)), '未上傳');
-          const done = (byStatus['已上傳'] || []).length + (byStatus['已完成'] || []).length;
-          const pct = Math.round((done / list.length) * 100);
-          return (
-            <Card key={s} size="small" style={{ marginBottom: 12 }}
-              title={<span>📅 {s}　<Tag color="green">{list.length} 款 · 已上傳/完成 {pct}%</Tag></span>}>
-              <Space wrap>
-                {Object.keys(byStatus).map((st) => (<Tag key={st} color={statusColor(st)}>{st} {byStatus[st].length}</Tag>))}
-              </Space>
-            </Card>
-          );
-        })}
-      </div>
-    );
+    const rowsData = shown.map(({ s, list }) => {
+      const { g: byStatus } = groupBy(list, (r) => statusLabel(effStatus(r)), '未上傳');
+      const done = (byStatus['已上傳'] || []).length + (byStatus['已完成'] || []).length;
+      return { season: s, total: list.length, pct: Math.round((done / list.length) * 100), byStatus };
+    });
+    const usedStatuses = [...STATUS_OPTIONS, '未上傳'].filter((st) => rowsData.some((r) => (r.byStatus[st] || []).length > 0));
+    const columns = [
+      { title: '季度', dataIndex: 'season', key: 'season', fixed: 'left', render: (s) => <b>📅 {s}</b> },
+      ...usedStatuses.map((st) => ({
+        title: st, key: st, align: 'center',
+        render: (_, r) => {
+          const n = (r.byStatus[st] || []).length;
+          return n ? <Tag color={statusColor(st)}>{n}</Tag> : <span style={{ color: '#ccc' }}>–</span>;
+        },
+      })),
+      { title: '合計', key: 'total', align: 'center', render: (_, r) => <b>{r.total}</b> },
+      { title: '完成率', key: 'pct', align: 'center', render: (_, r) => <Tag color="green">{r.pct}%</Tag> },
+    ];
+    return <Table size="small" pagination={false} rowKey="season" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: '#fff' }} />;
   })();
 
   const pendingBase = applyFilters(rows.filter((r) => !['已上傳', '已完成'].includes(statusLabel(effStatus(r)))));
