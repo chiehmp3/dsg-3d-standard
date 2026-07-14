@@ -3,9 +3,9 @@ import { Tabs, Tag, Empty, Table, Space, Select, Button, Modal, Input, Checkbox,
 import { sb } from '../supabase';
 
 // 樣品狀態下拉選項（與業務 Excel 的下拉一致）
-const STATUS_OPTIONS = ['待進單', '已進單', '待測布', '待進行', '進行中', '待業務確認', '待細節', '已完成', '已上傳', '製版澄清中', '待完成檢查', '製版中', '退回版師'];
+const STATUS_OPTIONS = ['待進單', '待製版', '待測布', '待進行', '進行中', '待業務確認', '待細節', '已完成', '已上傳', '製版澄清中', '待完成檢查', '製版中', '退回版師'];
 const STATUS_COLOR = {
-  待進單: 'default', 已進單: 'cyan', 待測布: 'gold', 待進行: 'default', 進行中: 'blue',
+  待進單: 'default', 待製版: 'cyan', 待測布: 'gold', 待進行: 'default', 進行中: 'blue',
   待業務確認: 'orange', 待細節: 'orange', 已完成: 'green', 已上傳: 'green',
   製版澄清中: 'purple', 待完成檢查: 'geekblue', 製版中: 'magenta', 退回版師: 'red',
 };
@@ -37,14 +37,28 @@ function groupBy(list, keyFn, fallback) {
 function StatusCell({ r, value, editable, onChange, showSeason }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-      {r.style_no && <span className="mono" style={{ fontWeight: 600, color: '#006150', minWidth: 90 }}>{r.style_no}</span>}
+      {r.style_no && (
+        <span
+          className="mono" title={r.style_no}
+          style={{ fontWeight: 600, color: '#006150', width: 130, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {r.style_no}
+        </span>
+      )}
       <span
         title={r.style_name || r.product}
         style={{ width: 220, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
       >
         {r.style_name || r.product}
       </span>
-      {r.fabric && <span className="page-desc" style={{ margin: 0 }}>🧵 {r.fabric}</span>}
+      {r.fabric && (
+        <span
+          className="page-desc" title={r.fabric}
+          style={{ margin: 0, width: 160, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          🧵 {r.fabric}
+        </span>
+      )}
       {showSeason && <Tag>{r.season}</Tag>}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
         {r.sample_due && <span className="page-desc" style={{ margin: 0 }}>交期 {r.sample_due}</span>}
