@@ -1,16 +1,35 @@
+import { useState } from 'react';
 import { Tag, Typography, Image, Button, message } from 'antd';
-import { LinkOutlined, MailOutlined, CopyOutlined } from '@ant-design/icons';
+import { LinkOutlined, MailOutlined, CopyOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import { imgUrl, SOURCE_TAG } from '../theme';
 
-// 內文中的網址自動變連結；**文字** 變粗體
+// 點擊才顯示的內容（例如密碼），避免明文一直露在畫面上被路過的人看到
+function Reveal({ text }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span className="mono">{shown ? text : '•'.repeat(Math.max(text.length, 6))}</span>
+      <Button
+        type="text" size="small" style={{ padding: '0 4px' }}
+        icon={shown ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+        onClick={() => setShown((s) => !s)}
+      />
+    </span>
+  );
+}
+
+// 內文中的網址自動變連結；**文字** 變粗體；||文字|| 變點擊才顯示
 function linkify(text) {
   const parts = String(text).split(/(https?:\/\/[^\s]+)/g);
   return parts.map((p, i) => {
     if (/^https?:\/\//.test(p)) return <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a>;
-    const boldParts = p.split(/(\*\*[^*]+\*\*)/g);
-    return <span key={i}>{boldParts.map((bp, j) => {
-      const m = bp.match(/^\*\*([^*]+)\*\*$/);
-      return m ? <strong key={j}>{m[1]}</strong> : bp;
+    const chunks = p.split(/(\*\*[^*]+\*\*|\|\|[^|]+\|\|)/g);
+    return <span key={i}>{chunks.map((c, j) => {
+      const bold = c.match(/^\*\*([^*]+)\*\*$/);
+      if (bold) return <strong key={j}>{bold[1]}</strong>;
+      const secret = c.match(/^\|\|([^|]+)\|\|$/);
+      if (secret) return <Reveal key={j} text={secret[1]} />;
+      return c;
     })}</span>;
   });
 }
