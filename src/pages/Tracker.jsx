@@ -61,7 +61,7 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
       )}
       {showSeason && <Tag>{r.season}</Tag>}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        {r.sample_due && <span className="page-desc" style={{ margin: 0, width: 100, flexShrink: 0 }}>交期 {r.sample_due}</span>}
+        {r.sample_due && <span className="page-desc" style={{ margin: 0, width: 130, flexShrink: 0, whiteSpace: 'nowrap' }}>交期 {r.sample_due}</span>}
         {editable ? (
           <Select size="small" style={{ width: 160, flexShrink: 0 }} value={value || undefined} placeholder="未上傳" allowClear
             options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
