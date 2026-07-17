@@ -60,14 +60,19 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
         </span>
       )}
       {showSeason && <Tag>{r.season}</Tag>}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-        {r.sample_due && <span className="page-desc" style={{ margin: 0 }}>交期 {r.sample_due}</span>}
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {r.sample_due && <span className="page-desc" style={{ margin: 0, width: 100, flexShrink: 0 }}>交期 {r.sample_due}</span>}
         {editable ? (
-          <Select size="small" style={{ minWidth: 128 }} value={value || undefined} placeholder="未上傳" allowClear
+          <Select size="small" style={{ width: 160, flexShrink: 0 }} value={value || undefined} placeholder="未上傳" allowClear
             options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
             onChange={(v) => onChange(r, v ?? null)} />
         ) : (
-          <Tag color={statusColor(value)}>{statusLabel(value)}</Tag>
+          <Tag
+            color={statusColor(value)} title={statusLabel(value)}
+            style={{ width: 160, flexShrink: 0, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}
+          >
+            {statusLabel(value)}
+          </Tag>
         )}
       </div>
     </div>
