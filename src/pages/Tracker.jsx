@@ -3,11 +3,11 @@ import { Tabs, Tag, Empty, Table, Space, Select, Button, Modal, Input, Checkbox,
 import { sb } from '../supabase';
 
 // 樣品狀態下拉選項（與業務 Excel 的下拉一致）
-const STATUS_OPTIONS = ['待進單', '待製版', '待測布', '待進行', '進行中', '待業務確認', '待細節', '已完成', '已上傳', '製版澄清中', '待完成檢查', '製版中', '退回版師'];
+const STATUS_OPTIONS = ['待進單', '待製版', '待測布', '待進行', '進行中', '待業務確認', '待細節', '已完成', '已上傳', '製版澄清中', '待開發處內部澄清', '待完成檢查', '製版中', '退回版師'];
 const STATUS_COLOR = {
   待進單: 'default', 待製版: 'cyan', 待測布: 'gold', 待進行: 'default', 進行中: 'blue',
   待業務確認: 'orange', 待細節: 'orange', 已完成: 'green', 已上傳: 'green',
-  製版澄清中: 'purple', 待完成檢查: 'geekblue', 製版中: 'magenta', 退回版師: 'red',
+  製版澄清中: 'purple', 待開發處內部澄清: 'volcano', 待完成檢查: 'geekblue', 製版中: 'magenta', 退回版師: 'red',
 };
 const statusLabel = (s) => (s && String(s).trim()) || '未上傳';
 const statusColor = (s) => STATUS_COLOR[statusLabel(s)] || 'default';
