@@ -12,6 +12,15 @@ const STATUS_COLOR = {
 const statusLabel = (s) => (s && String(s).trim()) || '未上傳';
 const statusColor = (s) => STATUS_COLOR[statusLabel(s)] || 'default';
 
+// 摘要樞紐表可選的「列」分類；選「狀態」時欄位改用季度（其餘分類欄位固定用狀態）
+const SUMMARY_GROUP_OPTIONS = [
+  { value: 'season', label: '季度' },
+  { value: 'brand', label: '品牌' },
+  { value: 'fabric', label: '布料' },
+  { value: 'due', label: '交期' },
+  { value: 'status', label: '狀態' },
+];
+
 // 篩選／排序記在瀏覽器 localStorage，離開頁面再回來不會重置
 const TRACKER_FILTERS_KEY = 'dsg-tracker-filters';
 function loadSavedFilters() {
@@ -88,11 +97,12 @@ export default function TrackerPage({ data }) {
   const [sortKey, setSortKey] = useState(saved.sortKey || 'default');
   const [search, setSearch] = useState(saved.search || '');
   const [crossSeason, setCrossSeason] = useState(saved.crossSeason || false);
+  const [summaryGroupBy, setSummaryGroupBy] = useState(saved.summaryGroupBy || 'season');
   useEffect(() => {
     localStorage.setItem(TRACKER_FILTERS_KEY, JSON.stringify({
-      view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason,
+      view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy,
     }));
-  }, [view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason]);
+  }, [view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy]);
   const rows = data.sampleRequests || [];
 
   const allBrands = useMemo(
@@ -235,51 +245,81 @@ export default function TrackerPage({ data }) {
     </div>
   );
 
-  // 樞紐表：一列一季度，欄位＝有出現過的狀態（只顯示有資料的狀態，避免全零欄位塞滿報表）
+  // 樞紐表：列＝可選分類（季度／品牌／布料／交期／狀態），欄＝狀態（選「狀態」當列時欄改用季度）
+  // 只顯示有資料的欄，避免全零欄位塞滿報表
   const summary = (() => {
-    const shown = seasons.map((s) => ({ s, list: applyFilters(bySeason[s]) })).filter((x) => x.list.length);
-    if (!shown.length) return <Empty description="沒有符合條件的款式" />;
-    const rowsData = shown.map(({ s, list }) => {
-      const { g: byStatus } = groupBy(list, (r) => statusLabel(effStatus(r)), '未上傳');
-      const done = (byStatus['已上傳'] || []).length + (byStatus['已完成'] || []).length;
-      return { season: s, total: list.length, pct: Math.round((done / list.length) * 100), byStatus };
+    const filtered = applyFilters(rows);
+    if (!filtered.length) return <Empty description="沒有符合條件的款式" />;
+
+    const colIsSeason = summaryGroupBy === 'status';
+    const rowKeyFn = {
+      season: (r) => r.season,
+      brand: (r) => r.brand,
+      fabric: (r) => r.fabric,
+      due: (r) => r.sample_due,
+      status: (r) => statusLabel(effStatus(r)),
+    }[summaryGroupBy];
+    const colKeyFn = colIsSeason ? (r) => r.season : (r) => statusLabel(effStatus(r));
+
+    const { g: byRow, order: rowOrder } = groupBy(filtered, rowKeyFn, '未填');
+    if (summaryGroupBy === 'season') rowOrder.sort(seasonCmp);
+    else if (summaryGroupBy !== 'status') rowOrder.sort((a, b) => String(a).localeCompare(String(b)));
+
+    const rowsData = rowOrder.map((key) => {
+      const list = byRow[key];
+      const { g: byCol } = groupBy(list, colKeyFn, colIsSeason ? '未分類' : '未上傳');
+      const done = (byCol['已上傳'] || []).length + (byCol['已完成'] || []).length;
+      return { key, total: list.length, pct: Math.round((done / list.length) * 100), byCol };
     });
-    const usedStatuses = [...STATUS_OPTIONS, '未上傳'].filter((st) => rowsData.some((r) => (r.byStatus[st] || []).length > 0));
+    const usedCols = colIsSeason
+      ? seasons.filter((s) => rowsData.some((r) => (r.byCol[s] || []).length > 0))
+      : [...STATUS_OPTIONS, '未上傳'].filter((st) => rowsData.some((r) => (r.byCol[st] || []).length > 0));
+
+    const rowLabel = SUMMARY_GROUP_OPTIONS.find((o) => o.value === summaryGroupBy).label;
     const columns = [
-      { title: '季度', dataIndex: 'season', key: 'season', fixed: 'left', render: (s) => <b>📅 {s}</b> },
-      ...usedStatuses.map((st) => ({
-        title: st, key: st, align: 'center',
+      { title: rowLabel, dataIndex: 'key', key: 'key', fixed: 'left', render: (k) => <b>{summaryGroupBy === 'season' ? '📅 ' : ''}{k}</b> },
+      ...usedCols.map((c) => ({
+        title: c, key: c, align: 'center',
         render: (_, r) => {
-          const n = (r.byStatus[st] || []).length;
-          return n ? <Tag color={statusColor(st)}>{n}</Tag> : <span style={{ color: '#ccc' }}>–</span>;
+          const n = (r.byCol[c] || []).length;
+          return n ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{n}</Tag> : <span style={{ color: '#ccc' }}>–</span>;
         },
       })),
       { title: '合計', key: 'total', align: 'center', render: (_, r) => <b>{r.total}</b> },
-      { title: '完成率', key: 'pct', align: 'center', render: (_, r) => <Tag color="green">{r.pct}%</Tag> },
+      // 選「狀態」當列時，每列本身就是一種狀態，「完成率」這個指標沒有意義，故不顯示
+      ...(colIsSeason ? [] : [{ title: '完成率', key: 'pct', align: 'center', render: (_, r) => <Tag color="green">{r.pct}%</Tag> }]),
     ];
     return (
-      <Table
-        size="small" pagination={false} rowKey="season" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: '#fff' }}
-        summary={() => {
-          const totalByStatus = {};
-          usedStatuses.forEach((st) => { totalByStatus[st] = rowsData.reduce((sum, r) => sum + (r.byStatus[st] || []).length, 0); });
-          const grandTotal = rowsData.reduce((sum, r) => sum + r.total, 0);
-          const doneTotal = (totalByStatus['已上傳'] || 0) + (totalByStatus['已完成'] || 0);
-          const grandPct = grandTotal ? Math.round((doneTotal / grandTotal) * 100) : 0;
-          return (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0}><b>總計</b></Table.Summary.Cell>
-              {usedStatuses.map((st, i) => (
-                <Table.Summary.Cell key={st} index={i + 1} align="center">
-                  {totalByStatus[st] ? <Tag color={statusColor(st)}>{totalByStatus[st]}</Tag> : <span style={{ color: '#ccc' }}>–</span>}
-                </Table.Summary.Cell>
-              ))}
-              <Table.Summary.Cell index={usedStatuses.length + 1} align="center"><b>{grandTotal}</b></Table.Summary.Cell>
-              <Table.Summary.Cell index={usedStatuses.length + 2} align="center"><Tag color="green">{grandPct}%</Tag></Table.Summary.Cell>
-            </Table.Summary.Row>
-          );
-        }}
-      />
+      <div>
+        <Space style={{ margin: '12px 0' }}>
+          <span className="page-desc" style={{ margin: 0 }}>檢視依據：</span>
+          <Select value={summaryGroupBy} onChange={setSummaryGroupBy} style={{ width: 140 }} options={SUMMARY_GROUP_OPTIONS} />
+        </Space>
+        <Table
+          size="small" pagination={false} rowKey="key" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: '#fff' }}
+          summary={() => {
+            const totalByCol = {};
+            usedCols.forEach((c) => { totalByCol[c] = rowsData.reduce((sum, r) => sum + (r.byCol[c] || []).length, 0); });
+            const grandTotal = rowsData.reduce((sum, r) => sum + r.total, 0);
+            const doneTotal = filtered.filter((r) => ['已上傳', '已完成'].includes(statusLabel(effStatus(r)))).length;
+            const grandPct = grandTotal ? Math.round((doneTotal / grandTotal) * 100) : 0;
+            return (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0}><b>總計</b></Table.Summary.Cell>
+                {usedCols.map((c, i) => (
+                  <Table.Summary.Cell key={c} index={i + 1} align="center">
+                    {totalByCol[c] ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{totalByCol[c]}</Tag> : <span style={{ color: '#ccc' }}>–</span>}
+                  </Table.Summary.Cell>
+                ))}
+                <Table.Summary.Cell index={usedCols.length + 1} align="center"><b>{grandTotal}</b></Table.Summary.Cell>
+                {!colIsSeason && (
+                  <Table.Summary.Cell index={usedCols.length + 2} align="center"><Tag color="green">{grandPct}%</Tag></Table.Summary.Cell>
+                )}
+              </Table.Summary.Row>
+            );
+          }}
+        />
+      </div>
     );
   })();
 
