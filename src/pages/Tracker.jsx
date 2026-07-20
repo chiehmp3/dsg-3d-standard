@@ -37,28 +37,24 @@ function groupBy(list, keyFn, fallback) {
 function StatusCell({ r, value, editable, onChange, showSeason }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-      {r.style_no && (
-        <span
-          className="mono" title={r.style_no}
-          style={{ fontWeight: 600, color: '#006150', width: 130, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        >
-          {r.style_no}
-        </span>
-      )}
+      <span
+        className="mono" title={r.style_no || ''}
+        style={{ fontWeight: 600, color: '#006150', width: 130, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {r.style_no || ''}
+      </span>
       <span
         title={r.style_name || r.product}
         style={{ width: 220, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
       >
         {r.style_name || r.product}
       </span>
-      {r.fabric && (
-        <span
-          className="page-desc" title={r.fabric}
-          style={{ margin: 0, width: 160, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        >
-          🧵 {r.fabric}
-        </span>
-      )}
+      <span
+        className="page-desc" title={r.fabric || ''}
+        style={{ margin: 0, width: 160, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {r.fabric ? `🧵 ${r.fabric}` : ''}
+      </span>
       {showSeason && <Tag>{r.season}</Tag>}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {r.sample_due && <span className="page-desc" style={{ margin: 0, width: 130, flexShrink: 0, whiteSpace: 'nowrap' }}>交期 {r.sample_due}</span>}
