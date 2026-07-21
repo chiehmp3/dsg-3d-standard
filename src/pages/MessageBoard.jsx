@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Empty, Input, Button, Space, Modal, Select, Tag, message } from 'antd';
+import { Empty, Input, Button, Space, Modal, Select, Tag, Image, message } from 'antd';
+import { DeleteOutlined, PictureOutlined } from '@ant-design/icons';
 import { sb } from '../supabase';
 
 const DEPARTMENT_OPTIONS = ['開發處內部', '業務', 'DPC', '客人', '其他'];
 const DEPARTMENT_COLOR = { 開發處內部: 'blue', 業務: 'orange', DPC: 'purple', 客人: 'green', 其他: 'default' };
+const IMAGE_BUCKET = 'message-images';
+const imgPublicUrl = (path) => sb.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 
 export default function MessageBoardPage() {
   const [rows, setRows] = useState([]);
@@ -39,17 +42,39 @@ export default function MessageBoardPage() {
   const [authorName, setAuthorName] = useState('');
   const [department, setDepartment] = useState();
   const [content, setContent] = useState('');
+  const [files, setFiles] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const onFilesSelected = (e) => {
+    const picked = Array.from(e.target.files || []);
+    setFiles((f) => [...f, ...picked]);
+    e.target.value = '';
+  };
+  const removeFile = (idx) => setFiles((f) => f.filter((_, i) => i !== idx));
+
   const submit = async () => {
     const name = authorName.trim(), text = content.trim();
     if (!name || !department || !text) { message.warning('請輸入姓名、部門與內容'); return; }
-    const { data, error } = await sb.from('messages').insert({ author_name: name, department, content: text }).select().single();
+    setSubmitting(true);
+    const imagePaths = [];
+    for (const file of files) {
+      const path = `${crypto.randomUUID()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from(IMAGE_BUCKET).upload(path, file);
+      if (upErr) { message.error('圖片上傳失敗：' + upErr.message); setSubmitting(false); return; }
+      imagePaths.push(path);
+    }
+    const { data, error } = await sb.from('messages')
+      .insert({ author_name: name, department, content: text, images: imagePaths }).select().single();
+    setSubmitting(false);
     if (error) { message.error('送出失敗：' + error.message); return; }
     setRows((r) => [data, ...(r || [])]);
-    setContent('');
+    setContent(''); setFiles([]);
     message.success('留言成功');
   };
 
   const remove = async (id) => {
+    const target = rows.find((m) => m.id === id);
+    if (target?.images?.length) await sb.storage.from(IMAGE_BUCKET).remove(target.images);
     const { error } = await sb.from('messages').delete().eq('id', id);
     if (error) { message.error('刪除失敗：' + error.message); return; }
     setRows((r) => r.filter((m) => m.id !== id));
@@ -74,7 +99,28 @@ export default function MessageBoardPage() {
             options={DEPARTMENT_OPTIONS.map((d) => ({ value: d, label: d }))} />
         </Space>
         <Input.TextArea placeholder="留言內容…" value={content} onChange={(e) => setContent(e.target.value)} maxLength={2000} rows={3} />
-        <Button type="primary" onClick={submit}>送出</Button>
+        <Space align="center">
+          <Button icon={<PictureOutlined />}>
+            <label style={{ cursor: 'pointer' }}>
+              加圖片
+              <input type="file" accept="image/*" multiple onChange={onFilesSelected} style={{ display: 'none' }} />
+            </label>
+          </Button>
+          {files.length > 0 && <span className="page-desc" style={{ margin: 0 }}>已選 {files.length} 張</span>}
+        </Space>
+        {files.length > 0 && (
+          <Space wrap>
+            {files.map((f, i) => (
+              <div key={i} style={{ position: 'relative' }}>
+                <img src={URL.createObjectURL(f)} alt={f.name}
+                  style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+                <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
+                  style={{ position: 'absolute', top: -8, right: -8 }} onClick={() => removeFile(i)} />
+              </div>
+            ))}
+          </Space>
+        )}
+        <Button type="primary" onClick={submit} loading={submitting}>送出</Button>
       </Space>
 
       {!rows.length ? (
@@ -90,6 +136,18 @@ export default function MessageBoardPage() {
                   <span className="page-desc" style={{ margin: 0, fontSize: 12 }}>{new Date(m.created_at).toLocaleString()}</span>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                {m.images?.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <Image.PreviewGroup>
+                      <Space wrap>
+                        {m.images.map((path, i) => (
+                          <Image key={i} src={imgPublicUrl(path)}
+                            style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+                        ))}
+                      </Space>
+                    </Image.PreviewGroup>
+                  </div>
+                )}
               </div>
               {loggedIn && <Button size="small" danger onClick={() => remove(m.id)}>刪除</Button>}
             </div>
