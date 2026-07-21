@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Empty, Input, Button, Space, Modal, Select, Tag, Image, message } from 'antd';
-import { DeleteOutlined, PictureOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PictureOutlined, CheckOutlined, UndoOutlined } from '@ant-design/icons';
 import { sb } from '../supabase';
 
 const DEPARTMENT_OPTIONS = ['開發處內部', '業務', 'DPC', '客人', '其他'];
@@ -76,6 +76,13 @@ export default function MessageBoardPage() {
     setRows((r) => [data, ...(r || [])]);
     setContent(''); setFiles([]);
     message.success('留言成功');
+  };
+
+  const toggleResolved = async (m) => {
+    const { data, error } = await sb.from('messages').update({ resolved: !m.resolved }).eq('id', m.id).select().single();
+    if (error) { message.error('更新失敗：' + error.message); return; }
+    setRows((r) => r.map((x) => (x.id === m.id ? data : x)));
+    message.success(data.resolved ? '已標記為已解決' : '已取消標記');
   };
 
   const remove = async (id) => {
@@ -181,7 +188,7 @@ export default function MessageBoardPage() {
       ) : (
         <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
           {rows.map((m) => (
-            <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+            <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid #f5f5f5', opacity: m.resolved && editingId !== m.id ? 0.55 : 1 }}>
               {editingId === m.id ? (
                 <div style={{ flex: 1 }}>
                   <Space direction="vertical" style={{ width: '100%' }}>
@@ -228,6 +235,7 @@ export default function MessageBoardPage() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                     <span style={{ fontWeight: 600 }}>{m.author_name}</span>
                     {m.department && <Tag color={DEPARTMENT_COLOR[m.department] || 'default'}>{m.department}</Tag>}
+                    {m.resolved && <Tag color="success" icon={<CheckOutlined />}>已解決</Tag>}
                     <span className="page-desc" style={{ margin: 0, fontSize: 12 }}>{new Date(m.created_at).toLocaleString()}</span>
                   </div>
                   <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
@@ -247,6 +255,9 @@ export default function MessageBoardPage() {
               )}
               {loggedIn && editingId !== m.id && (
                 <Space>
+                  <Button size="small" icon={m.resolved ? <UndoOutlined /> : <CheckOutlined />} onClick={() => toggleResolved(m)}>
+                    {m.resolved ? '取消已解決' : '標記已解決'}
+                  </Button>
                   <Button size="small" onClick={() => startEdit(m)}>編輯</Button>
                   <Button size="small" danger onClick={() => remove(m.id)}>刪除</Button>
                 </Space>
