@@ -7,6 +7,12 @@ const DEPARTMENT_OPTIONS = ['開發處內部', '業務', 'DPC', '客人', '其�
 const DEPARTMENT_COLOR = { 開發處內部: 'blue', 業務: 'orange', DPC: 'purple', 客人: 'green', 其他: 'default' };
 const IMAGE_BUCKET = 'message-images';
 const imgPublicUrl = (path) => sb.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+// Supabase Storage 的 key 不接受中文等非 ASCII 字元（例如螢幕截圖預設檔名「影像.png」），只留副檔名、其餘用亂碼檔名避免衝突
+const safeStoragePath = (file) => {
+  const m = file.name.match(/\.[a-zA-Z0-9]+$/);
+  const ext = m ? m[0] : '';
+  return `${crypto.randomUUID()}${ext}`;
+};
 
 export default function MessageBoardPage() {
   const [rows, setRows] = useState([]);
@@ -58,7 +64,7 @@ export default function MessageBoardPage() {
     setSubmitting(true);
     const imagePaths = [];
     for (const file of files) {
-      const path = `${crypto.randomUUID()}-${file.name}`;
+      const path = safeStoragePath(file);
       const { error: upErr } = await sb.storage.from(IMAGE_BUCKET).upload(path, file);
       if (upErr) { message.error('圖片上傳失敗：' + upErr.message); setSubmitting(false); return; }
       imagePaths.push(path);
@@ -113,7 +119,7 @@ export default function MessageBoardPage() {
     if (removed.length) await sb.storage.from(IMAGE_BUCKET).remove(removed);
     const newPaths = [];
     for (const file of editNewFiles) {
-      const path = `${crypto.randomUUID()}-${file.name}`;
+      const path = safeStoragePath(file);
       const { error: upErr } = await sb.storage.from(IMAGE_BUCKET).upload(path, file);
       if (upErr) { message.error('圖片上傳失敗：' + upErr.message); setSavingEdit(false); return; }
       newPaths.push(path);
