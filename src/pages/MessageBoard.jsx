@@ -81,10 +81,57 @@ export default function MessageBoardPage() {
     message.success('已刪除');
   };
 
+  // 編輯
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDept, setEditDept] = useState();
+  const [editContent, setEditContent] = useState('');
+  const [editImages, setEditImages] = useState([]); // 保留的舊圖片路徑
+  const [editNewFiles, setEditNewFiles] = useState([]); // 新增的圖片
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const startEdit = (m) => {
+    setEditingId(m.id);
+    setEditName(m.author_name);
+    setEditDept(m.department);
+    setEditContent(m.content);
+    setEditImages(m.images || []);
+    setEditNewFiles([]);
+  };
+  const cancelEdit = () => setEditingId(null);
+  const onEditFilesSelected = (e) => {
+    const picked = Array.from(e.target.files || []);
+    setEditNewFiles((f) => [...f, ...picked]);
+    e.target.value = '';
+  };
+
+  const saveEdit = async (id) => {
+    const name = editName.trim(), text = editContent.trim();
+    if (!name || !editDept || !text) { message.warning('請輸入姓名、部門與內容'); return; }
+    setSavingEdit(true);
+    const removed = (rows.find((m) => m.id === id)?.images || []).filter((p) => !editImages.includes(p));
+    if (removed.length) await sb.storage.from(IMAGE_BUCKET).remove(removed);
+    const newPaths = [];
+    for (const file of editNewFiles) {
+      const path = `${crypto.randomUUID()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from(IMAGE_BUCKET).upload(path, file);
+      if (upErr) { message.error('圖片上傳失敗：' + upErr.message); setSavingEdit(false); return; }
+      newPaths.push(path);
+    }
+    const images = [...editImages, ...newPaths];
+    const { data, error } = await sb.from('messages')
+      .update({ author_name: name, department: editDept, content: text, images }).eq('id', id).select().single();
+    setSavingEdit(false);
+    if (error) { message.error('儲存失敗：' + error.message); return; }
+    setRows((r) => r.map((m) => (m.id === id ? data : m)));
+    setEditingId(null);
+    message.success('已更新');
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <p className="page-desc" style={{ flex: 1 }}>team 留言交流，任何人都能留言；登入後可管理（刪除）留言。</p>
+        <p className="page-desc" style={{ flex: 1 }}>team 留言交流，任何人都能留言；登入後可管理（編輯／刪除）留言。</p>
         {loggedIn ? (
           <Space><span className="page-desc" style={{ margin: 0 }}>👤 {session.user.email}</span><Button size="small" onClick={doLogout}>登出</Button></Space>
         ) : (
@@ -129,27 +176,75 @@ export default function MessageBoardPage() {
         <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
           {rows.map((m) => (
             <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                  <span style={{ fontWeight: 600 }}>{m.author_name}</span>
-                  {m.department && <Tag color={DEPARTMENT_COLOR[m.department] || 'default'}>{m.department}</Tag>}
-                  <span className="page-desc" style={{ margin: 0, fontSize: 12 }}>{new Date(m.created_at).toLocaleString()}</span>
+              {editingId === m.id ? (
+                <div style={{ flex: 1 }}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space wrap>
+                      <Input placeholder="你的姓名" value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={50} style={{ width: 200 }} />
+                      <Select placeholder="選擇部門" value={editDept} onChange={setEditDept} style={{ width: 160 }}
+                        options={DEPARTMENT_OPTIONS.map((d) => ({ value: d, label: d }))} />
+                    </Space>
+                    <Input.TextArea value={editContent} onChange={(e) => setEditContent(e.target.value)} maxLength={2000} rows={3} />
+                    <Space wrap>
+                      {editImages.map((path, i) => (
+                        <div key={path} style={{ position: 'relative' }}>
+                          <img src={imgPublicUrl(path)} alt=""
+                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+                          <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
+                            style={{ position: 'absolute', top: -8, right: -8 }}
+                            onClick={() => setEditImages((imgs) => imgs.filter((_, j) => j !== i))} />
+                        </div>
+                      ))}
+                      {editNewFiles.map((f, i) => (
+                        <div key={i} style={{ position: 'relative' }}>
+                          <img src={URL.createObjectURL(f)} alt={f.name}
+                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+                          <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
+                            style={{ position: 'absolute', top: -8, right: -8 }}
+                            onClick={() => setEditNewFiles((fs) => fs.filter((_, j) => j !== i))} />
+                        </div>
+                      ))}
+                      <Button icon={<PictureOutlined />}>
+                        <label style={{ cursor: 'pointer' }}>
+                          加圖片
+                          <input type="file" accept="image/*" multiple onChange={onEditFilesSelected} style={{ display: 'none' }} />
+                        </label>
+                      </Button>
+                    </Space>
+                    <Space>
+                      <Button type="primary" onClick={() => saveEdit(m.id)} loading={savingEdit}>儲存</Button>
+                      <Button onClick={cancelEdit}>取消</Button>
+                    </Space>
+                  </Space>
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
-                {m.images?.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <Image.PreviewGroup>
-                      <Space wrap>
-                        {m.images.map((path, i) => (
-                          <Image key={i} src={imgPublicUrl(path)}
-                            style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
-                        ))}
-                      </Space>
-                    </Image.PreviewGroup>
+              ) : (
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                    <span style={{ fontWeight: 600 }}>{m.author_name}</span>
+                    {m.department && <Tag color={DEPARTMENT_COLOR[m.department] || 'default'}>{m.department}</Tag>}
+                    <span className="page-desc" style={{ margin: 0, fontSize: 12 }}>{new Date(m.created_at).toLocaleString()}</span>
                   </div>
-                )}
-              </div>
-              {loggedIn && <Button size="small" danger onClick={() => remove(m.id)}>刪除</Button>}
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                  {m.images?.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <Image.PreviewGroup>
+                        <Space wrap>
+                          {m.images.map((path, i) => (
+                            <Image key={i} src={imgPublicUrl(path)}
+                              style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+                          ))}
+                        </Space>
+                      </Image.PreviewGroup>
+                    </div>
+                  )}
+                </div>
+              )}
+              {loggedIn && editingId !== m.id && (
+                <Space>
+                  <Button size="small" onClick={() => startEdit(m)}>編輯</Button>
+                  <Button size="small" danger onClick={() => remove(m.id)}>刪除</Button>
+                </Space>
+              )}
             </div>
           ))}
         </div>
