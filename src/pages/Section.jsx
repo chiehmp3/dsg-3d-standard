@@ -1,81 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Collapse, Menu, Tag, Button, Space, Empty, Modal, Input, App } from 'antd';
+import { useMemo, useState } from 'react';
+import { Collapse, Button, Space, Empty, Modal, Input, App } from 'antd';
 import { SwapOutlined, LockOutlined, HolderOutlined } from '@ant-design/icons';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { groupByName } from '../data';
 import { CardHeader, CardBody } from '../components/CardItem';
-import { SOURCE_TAG } from '../theme';
+import GroupButtons from '../components/GroupButtons';
 
-// Bible（原 Prefit＋細節合併）、Prefit流程、細節流程：卡片多，全部展開會太長，改用左側分頁＋右側單一內容檢視
-const TAB_LAYOUT_SLUGS = ['prefit', 'prefit-flow', 'detail-flow'];
-
-// 左側選單的精簡標籤：單行截斷＋來源標籤靠右，避免在窄欄位裡被擠成兩三行
-function TabLabel({ entry }) {
-  const tag = SOURCE_TAG[entry.source] || SOURCE_TAG.internal;
-  return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.title}>
-        {entry.title}
-      </span>
-      <Tag color={tag.color} style={{ margin: 0, flexShrink: 0 }}>{tag.label}</Tag>
-    </span>
-  );
-}
-
-// 分頁式檢視：左側依 group_name 分組的可捲動選單（大標題點開才展開子項，一次只開一組）
-// 右側只顯示目前選到那一張卡的內容
-function TabReadView({ entries }) {
-  const groups = useMemo(() => groupByName(entries), [entries]);
-  const groupKey = (g, gi) => g.name || `_group_${gi}`;
-
-  const [activeId, setActiveId] = useState(entries[0]?.id);
-  useEffect(() => {
-    if (!entries.some((e) => e.id === activeId)) setActiveId(entries[0]?.id);
-  }, [entries]);
-  const active = entries.find((e) => e.id === activeId) || entries[0];
-
-  const activeGroupKey = useMemo(() => {
-    const gi = groups.findIndex((g) => g.items.some((e) => e.id === active?.id));
-    return gi >= 0 ? groupKey(groups[gi], gi) : undefined;
-  }, [groups, active]);
-
-  const [openKeys, setOpenKeys] = useState(activeGroupKey ? [activeGroupKey] : []);
-  useEffect(() => { if (activeGroupKey) setOpenKeys([activeGroupKey]); }, [activeGroupKey]);
-
-  if (!entries.length) return <Empty description="此分類尚無內容" />;
-
-  const menuItems = groups.map((g, gi) => ({
-    key: groupKey(g, gi),
-    label: g.name || '其他',
-    children: g.items.map((e) => ({ key: e.id, label: <TabLabel entry={e} /> })),
-  }));
-  // 手風琴模式：一次只展開一個大標題
-  const onOpenChange = (keys) => {
-    const latest = keys.find((k) => !openKeys.includes(k));
-    setOpenKeys(latest ? [latest] : []);
-  };
-
-  return (
-    <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 260px)', minHeight: 420 }}>
-      <div style={{ width: 300, flexShrink: 0, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
-        <Menu mode="inline" selectedKeys={[active?.id]} openKeys={openKeys} onOpenChange={onOpenChange}
-          items={menuItems} onClick={({ key }) => setActiveId(key)} style={{ borderInlineEnd: 'none' }} />
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: '16px 20px' }}>
-        {active && (
-          <>
-            <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #f0f0f0' }}>
-              <CardHeader entry={active} />
-            </div>
-            <CardBody entry={active} />
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+// 卡片較多的頁面：不用手風琴，改用頁面上方的分組按鈕列（點按鈕，下面直接顯示內容）
+const BUTTON_LAYOUT_SLUGS = ['prefit', 'prefit-flow', 'detail-flow', 'upload'];
 
 // 一般（唯讀）檢視：依 group_name 分子群組，每群組一個 Collapse
 function ReadView({ entries }) {
@@ -169,8 +103,8 @@ export default function SectionPage({ section, data }) {
             {orderedEntries.map((e) => <SortableRow key={e.id} entry={e} />)}
           </SortableContext>
         </DndContext>
-      ) : TAB_LAYOUT_SLUGS.includes(section.slug) ? (
-        <TabReadView entries={entries} />
+      ) : BUTTON_LAYOUT_SLUGS.includes(section.slug) ? (
+        <GroupButtons entries={entries} />
       ) : (
         <ReadView entries={entries} />
       )}

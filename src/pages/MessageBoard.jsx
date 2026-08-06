@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Empty, Input, Button, Space, Modal, Select, Tag, Image, message } from 'antd';
 import { DeleteOutlined, PictureOutlined, CheckOutlined, UndoOutlined } from '@ant-design/icons';
 import { sb } from '../supabase';
@@ -13,6 +13,34 @@ const safeStoragePath = (file) => {
   const ext = m ? m[0] : '';
   return `${crypto.randomUUID()}${ext}`;
 };
+
+// 剪貼簿裡的圖片（螢幕截圖直接 Ctrl+V），大家最常用的貼圖方式
+const imagesFromClipboard = (e) => Array.from(e.clipboardData?.items || [])
+  .filter((it) => it.type.startsWith('image/'))
+  .map((it) => it.getAsFile())
+  .filter(Boolean);
+
+// 預覽用的 blob URL 只在檔案清單變動時重建並回收，避免每打一個字重新 render 就洩漏一批 URL
+function useObjectUrls(files) {
+  const [urls, setUrls] = useState([]);
+  useEffect(() => {
+    const next = files.map((f) => URL.createObjectURL(f));
+    setUrls(next);
+    return () => next.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
+  return urls;
+}
+
+// 待上傳圖片的縮圖＋移除鈕
+function Thumb({ src, onRemove }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <img src={src} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+      <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
+        style={{ position: 'absolute', top: -8, right: -8 }} onClick={onRemove} />
+    </div>
+  );
+}
 
 export default function MessageBoardPage() {
   const [rows, setRows] = useState([]);
@@ -51,12 +79,22 @@ export default function MessageBoardPage() {
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const fileInputRef = useRef(null);
+  const previews = useObjectUrls(files);
+
   const onFilesSelected = (e) => {
     const picked = Array.from(e.target.files || []);
     setFiles((f) => [...f, ...picked]);
     e.target.value = '';
   };
   const removeFile = (idx) => setFiles((f) => f.filter((_, i) => i !== idx));
+  const onPaste = (e) => {
+    const imgs = imagesFromClipboard(e);
+    if (!imgs.length) return;
+    e.preventDefault();
+    setFiles((f) => [...f, ...imgs]);
+    message.success(`已貼上 ${imgs.length} 張圖片`);
+  };
 
   const submit = async () => {
     const name = authorName.trim(), text = content.trim();
@@ -102,6 +140,8 @@ export default function MessageBoardPage() {
   const [editImages, setEditImages] = useState([]); // 保留的舊圖片路徑
   const [editNewFiles, setEditNewFiles] = useState([]); // 新增的圖片
   const [savingEdit, setSavingEdit] = useState(false);
+  const editFileInputRef = useRef(null);
+  const editPreviews = useObjectUrls(editNewFiles);
 
   const startEdit = (m) => {
     setEditingId(m.id);
@@ -116,6 +156,13 @@ export default function MessageBoardPage() {
     const picked = Array.from(e.target.files || []);
     setEditNewFiles((f) => [...f, ...picked]);
     e.target.value = '';
+  };
+  const onEditPaste = (e) => {
+    const imgs = imagesFromClipboard(e);
+    if (!imgs.length) return;
+    e.preventDefault();
+    setEditNewFiles((f) => [...f, ...imgs]);
+    message.success(`已貼上 ${imgs.length} 張圖片`);
   };
 
   const saveEdit = async (id) => {
@@ -158,25 +205,19 @@ export default function MessageBoardPage() {
           <Select placeholder="選擇部門" value={department} onChange={setDepartment} style={{ width: 160 }}
             options={DEPARTMENT_OPTIONS.map((d) => ({ value: d, label: d }))} />
         </Space>
-        <Input.TextArea placeholder="留言內容…" value={content} onChange={(e) => setContent(e.target.value)} maxLength={2000} rows={3} />
+        <Input.TextArea placeholder="留言內容…（截圖可直接 Ctrl+V 貼進來）" value={content}
+          onChange={(e) => setContent(e.target.value)} onPaste={onPaste} maxLength={2000} rows={3} />
         <Space align="center">
-          <Button icon={<PictureOutlined />}>
-            <label style={{ cursor: 'pointer' }}>
-              加圖片
-              <input type="file" accept="image/*" multiple onChange={onFilesSelected} style={{ display: 'none' }} />
-            </label>
-          </Button>
-          {files.length > 0 && <span className="page-desc" style={{ margin: 0 }}>已選 {files.length} 張</span>}
+          <Button icon={<PictureOutlined />} onClick={() => fileInputRef.current?.click()}>加圖片</Button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onFilesSelected} style={{ display: 'none' }} />
+          <span className="page-desc" style={{ margin: 0 }}>
+            {files.length > 0 ? `已選 ${files.length} 張` : '可一次選多張（按住 Ctrl 複選），或直接 Ctrl+V 貼上截圖'}
+          </span>
         </Space>
         {files.length > 0 && (
           <Space wrap>
             {files.map((f, i) => (
-              <div key={i} style={{ position: 'relative' }}>
-                <img src={URL.createObjectURL(f)} alt={f.name}
-                  style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
-                <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
-                  style={{ position: 'absolute', top: -8, right: -8 }} onClick={() => removeFile(i)} />
-              </div>
+              <Thumb key={i} src={previews[i]} onRemove={() => removeFile(i)} />
             ))}
           </Space>
         )}
@@ -197,32 +238,19 @@ export default function MessageBoardPage() {
                       <Select placeholder="選擇部門" value={editDept} onChange={setEditDept} style={{ width: 160 }}
                         options={DEPARTMENT_OPTIONS.map((d) => ({ value: d, label: d }))} />
                     </Space>
-                    <Input.TextArea value={editContent} onChange={(e) => setEditContent(e.target.value)} maxLength={2000} rows={3} />
+                    <Input.TextArea value={editContent} onChange={(e) => setEditContent(e.target.value)}
+                      onPaste={onEditPaste} maxLength={2000} rows={3} />
                     <Space wrap>
                       {editImages.map((path, i) => (
-                        <div key={path} style={{ position: 'relative' }}>
-                          <img src={imgPublicUrl(path)} alt=""
-                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
-                          <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
-                            style={{ position: 'absolute', top: -8, right: -8 }}
-                            onClick={() => setEditImages((imgs) => imgs.filter((_, j) => j !== i))} />
-                        </div>
+                        <Thumb key={path} src={imgPublicUrl(path)}
+                          onRemove={() => setEditImages((imgs) => imgs.filter((_, j) => j !== i))} />
                       ))}
                       {editNewFiles.map((f, i) => (
-                        <div key={i} style={{ position: 'relative' }}>
-                          <img src={URL.createObjectURL(f)} alt={f.name}
-                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
-                          <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
-                            style={{ position: 'absolute', top: -8, right: -8 }}
-                            onClick={() => setEditNewFiles((fs) => fs.filter((_, j) => j !== i))} />
-                        </div>
+                        <Thumb key={i} src={editPreviews[i]}
+                          onRemove={() => setEditNewFiles((fs) => fs.filter((_, j) => j !== i))} />
                       ))}
-                      <Button icon={<PictureOutlined />}>
-                        <label style={{ cursor: 'pointer' }}>
-                          加圖片
-                          <input type="file" accept="image/*" multiple onChange={onEditFilesSelected} style={{ display: 'none' }} />
-                        </label>
-                      </Button>
+                      <Button icon={<PictureOutlined />} onClick={() => editFileInputRef.current?.click()}>加圖片</Button>
+                      <input ref={editFileInputRef} type="file" accept="image/*" multiple onChange={onEditFilesSelected} style={{ display: 'none' }} />
                     </Space>
                     <Space>
                       <Button type="primary" onClick={() => saveEdit(m.id)} loading={savingEdit}>儲存</Button>

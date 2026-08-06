@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Tabs, Segmented, Button, Tag, Collapse, App, Alert } from 'antd';
+import { Tabs, Segmented, Button, Tag, App, Alert } from 'antd';
 import { CopyOutlined, FolderOpenOutlined } from '@ant-design/icons';
-import { groupByName } from '../data';
-import { CardHeader, CardBody } from '../components/CardItem';
+import GroupButtons from '../components/GroupButtons';
 
 function buildAvatarData(avatars) {
   const genders = {};
@@ -26,7 +25,6 @@ export default function AvatarPage({ section, data }) {
   const [subKey, setSubKey] = useState(null);
 
   const refEntries = useMemo(() => data.entries.filter((e) => e.section_id === section.id), [data.entries, section.id]);
-  const refGroups = useMemo(() => groupByName(refEntries), [refEntries]);
 
   if (!genders.length) return <Alert type="error" message="人台資料載入失敗，請確認 Supabase 的 avatars 表已建立" />;
 
@@ -90,13 +88,7 @@ export default function AvatarPage({ section, data }) {
       {refEntries.length > 0 && (
         <div style={{ marginTop: 26 }}>
           <h3 style={{ fontSize: 18, marginBottom: 12 }}>📄 人台相關規範</h3>
-          {refGroups.map((grp, ix) => (
-            <div key={ix}>
-              {grp.name && <div className="group-title">{grp.name}</div>}
-              <Collapse style={{ background: '#fff', marginBottom: 12 }}
-                items={grp.items.map((e) => ({ key: e.id, label: <CardHeader entry={e} />, children: <CardBody entry={e} /> }))} />
-            </div>
-          ))}
+          <GroupButtons entries={refEntries} />
         </div>
       )}
     </div>
