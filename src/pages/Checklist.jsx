@@ -19,7 +19,7 @@ export default function ChecklistPage({ section, data }) {
           if (isHeader) {
             return (
               <Divider key={e.id} orientation="left" orientationMargin={0}
-                style={{ color: '#006150', fontWeight: 700, fontSize: 13, marginTop: 24 }}>
+                style={{ color: 'var(--brand)', fontWeight: 700, fontSize: 13, marginTop: 24 }}>
                 {e.title.replace(/^【|】$/g, '')}
               </Divider>
             );
@@ -29,7 +29,7 @@ export default function ChecklistPage({ section, data }) {
             <div key={e.id} onClick={() => toggle(e.id)}
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', marginBottom: 6,
-                background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, cursor: 'pointer',
+                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer',
                 opacity: checked ? 0.5 : 1,
               }}>
               <Checkbox checked={checked} onClick={(ev) => ev.stopPropagation()} onChange={() => toggle(e.id)} />

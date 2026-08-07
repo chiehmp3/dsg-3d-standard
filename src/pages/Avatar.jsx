@@ -56,28 +56,28 @@ export default function AvatarPage({ section, data }) {
       )}
 
       {sub.folder && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(0,97,80,0.05)', border: '1px solid rgba(0,97,80,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
-          <FolderOpenOutlined style={{ color: '#006150' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'var(--brand-tint)', border: '1px solid var(--brand-tint-strong)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
+          <FolderOpenOutlined style={{ color: 'var(--brand)' }} />
           <span className="mono" style={{ flex: 1, minWidth: 200, wordBreak: 'break-all' }}>{sub.folder}</span>
           <Button size="small" icon={<CopyOutlined />} onClick={() => { navigator.clipboard.writeText(sub.folder); message.success('已複製資料夾路徑'); }}>複製路徑</Button>
         </div>
       )}
 
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
         {sub.sizes.map((s, i) => (
           <div key={i} style={{
             display: 'flex', alignItems: 'center', gap: 14, padding: '11px 16px',
-            borderBottom: i < sub.sizes.length - 1 ? '1px solid #f5f5f5' : 'none',
-            background: s.base ? 'rgba(0,97,80,0.06)' : '#fff',
-            borderLeft: s.base ? '3px solid #006150' : '3px solid transparent',
+            borderBottom: i < sub.sizes.length - 1 ? '1px solid var(--border-soft)' : 'none',
+            background: s.base ? 'var(--brand-tint)' : 'var(--surface)',
+            borderLeft: s.base ? '3px solid var(--brand)' : '3px solid transparent',
             opacity: s.rare ? 0.55 : 1,
           }}>
-            <span className="mono" style={{ fontSize: 15, fontWeight: 700, color: s.base ? '#006150' : '#262626', minWidth: 90 }}>
+            <span className="mono" style={{ fontSize: 15, fontWeight: 700, color: s.base ? 'var(--brand)' : 'var(--text)', minWidth: 90 }}>
               {s.base ? '★ ' : ''}{s.size}
             </span>
             {s.base && <Tag color="green">基準碼</Tag>}
             {s.rare && <Tag>少用</Tag>}
-            <span className="mono" style={{ flex: 1, color: '#006150', wordBreak: 'break-all' }}>{s.code}</span>
+            <span className="mono" style={{ flex: 1, color: 'var(--brand)', wordBreak: 'break-all' }}>{s.code}</span>
           </div>
         ))}
       </div>

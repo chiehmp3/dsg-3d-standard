@@ -45,10 +45,10 @@ function groupBy(list, keyFn, fallback) {
 
 function StatusCell({ r, value, editable, onChange, showSeason }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-soft)' }}>
       <span
         className="mono" title={r.style_no || ''}
-        style={{ fontWeight: 600, color: '#006150', width: 130, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        style={{ fontWeight: 600, color: 'var(--brand)', width: 130, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
       >
         {r.style_no || ''}
       </span>
@@ -182,8 +182,8 @@ export default function TrackerPage({ data }) {
     const { g, order } = groupBy(list, (r) => r.brand, '其他');
     return order.map((brand) => (
       <div key={brand} style={{ marginBottom: 18 }}>
-        <div style={{ fontWeight: 700, color: '#006150', margin: '10px 0 4px' }}>{brand}　<Tag>{g[brand].length}</Tag></div>
-        <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
+        <div style={{ fontWeight: 700, color: 'var(--brand)', margin: '10px 0 4px' }}>{brand}　<Tag>{g[brand].length}</Tag></div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 14px' }}>
           {sortList(g[brand]).map((r) => (
             <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} showSeason={crossSeason} />
           ))}
@@ -282,7 +282,7 @@ export default function TrackerPage({ data }) {
         title: c, key: c, align: 'center',
         render: (_, r) => {
           const n = (r.byCol[c] || []).length;
-          return n ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{n}</Tag> : <span style={{ color: '#ccc' }}>–</span>;
+          return n ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{n}</Tag> : <span style={{ color: 'var(--text-muted)' }}>–</span>;
         },
       })),
       { title: '合計', key: 'total', align: 'center', render: (_, r) => <b>{r.total}</b> },
@@ -296,7 +296,7 @@ export default function TrackerPage({ data }) {
           <Select value={summaryGroupBy} onChange={setSummaryGroupBy} style={{ width: 140 }} options={SUMMARY_GROUP_OPTIONS} />
         </Space>
         <Table
-          size="small" pagination={false} rowKey="key" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: '#fff' }}
+          size="small" pagination={false} rowKey="key" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: 'var(--surface)' }}
           summary={() => {
             const totalByCol = {};
             usedCols.forEach((c) => { totalByCol[c] = rowsData.reduce((sum, r) => sum + (r.byCol[c] || []).length, 0); });
@@ -308,7 +308,7 @@ export default function TrackerPage({ data }) {
                 <Table.Summary.Cell index={0}><b>總計</b></Table.Summary.Cell>
                 {usedCols.map((c, i) => (
                   <Table.Summary.Cell key={c} index={i + 1} align="center">
-                    {totalByCol[c] ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{totalByCol[c]}</Tag> : <span style={{ color: '#ccc' }}>–</span>}
+                    {totalByCol[c] ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{totalByCol[c]}</Tag> : <span style={{ color: 'var(--text-muted)' }}>–</span>}
                   </Table.Summary.Cell>
                 ))}
                 <Table.Summary.Cell index={usedCols.length + 1} align="center"><b>{grandTotal}</b></Table.Summary.Cell>
@@ -328,7 +328,7 @@ export default function TrackerPage({ data }) {
     ? [...pendingBase].sort((a, b) => seasonCmp(a.season, b.season))
     : sortList(pendingBase);
   const todo = pending.length ? (
-    <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 14px' }}>
       {pending.map((r) => (
         <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} showSeason />
       ))}

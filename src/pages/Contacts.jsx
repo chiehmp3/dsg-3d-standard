@@ -31,7 +31,7 @@ function subGroupOf(c) {
 }
 const LAYER_ORDER = ['業務', '版師主管', 'TD', '運籌'];
 
-const TO_COLOR = '#006150';   // 收件者（綠）
+const TO_COLOR = 'var(--brand)';   // 收件者（綠）
 const CC_COLOR = '#2f54eb';   // 副本（藍）
 
 export default function ContactsPage({ data }) {
@@ -137,14 +137,14 @@ export default function ContactsPage({ data }) {
           <div style={{ display: 'flex', gap: 10 }}>
             <Space direction="vertical" size={4} style={{ marginTop: 2 }}>
               <Button size="small" onClick={() => pickTo(k)} type={inTo ? 'primary' : 'default'}
-                style={inTo ? { background: TO_COLOR, borderColor: TO_COLOR } : rec === 'to' ? { borderColor: TO_COLOR, color: TO_COLOR } : undefined}>收</Button>
+                style={inTo ? { background: TO_COLOR, borderColor: TO_COLOR, color: 'var(--on-brand)' } : rec === 'to' ? { borderColor: TO_COLOR, color: TO_COLOR } : undefined}>收</Button>
               <Button size="small" onClick={() => pickCc(k)} type={inCc ? 'primary' : 'default'}
                 style={inCc ? { background: CC_COLOR, borderColor: CC_COLOR } : rec === 'cc' ? { borderColor: CC_COLOR, color: CC_COLOR } : undefined}>副</Button>
             </Space>
             <div style={{ flex: 1 }}>
               <div className="page-desc" style={{ marginTop: 0, marginBottom: 6 }}>{[c.brand, c.category].filter(Boolean).join(' · ')}</div>
               {c.owner_name_zh && (<div style={{ marginBottom: 4 }}><b>{c.owner_name_zh}</b> {c.owner_name_en && <Tag color="green">{c.owner_name_en}</Tag>}</div>)}
-              {c.backup_name_zh && (<div style={{ marginBottom: 4, fontSize: 13, color: 'rgba(0,0,0,0.5)' }}>職代：{c.backup_name_zh} {c.backup_name_en && <Tag>{c.backup_name_en}</Tag>}</div>)}
+              {c.backup_name_zh && (<div style={{ marginBottom: 4, fontSize: 13, color: 'var(--text-muted)' }}>職代：{c.backup_name_zh} {c.backup_name_en && <Tag>{c.backup_name_en}</Tag>}</div>)}
               {c.note && <div className="page-desc">{c.note}</div>}
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function ContactsPage({ data }) {
     <div key={sub} style={{ marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 10px' }}>
         <div className="group-title" style={{ margin: 0 }}>{sub}</div>
-        <Button size="small" type="text" onClick={() => selectGroup(list)} style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>全選此區（依建議）</Button>
+        <Button size="small" type="text" onClick={() => selectGroup(list)} style={{ fontSize: 12, color: 'var(--text-muted)' }}>全選此區（依建議）</Button>
       </div>
       <Row gutter={[12, 12]}>{list.map(renderCard)}</Row>
     </div>
@@ -175,7 +175,7 @@ export default function ContactsPage({ data }) {
 
       {bizLayer && (
         <Space wrap style={{ marginBottom: 8 }}>
-          <span style={{ color: 'rgba(0,0,0,0.55)', fontSize: 13 }}>品牌快捷：</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>品牌快捷：</span>
           {bizLayer.subOrder.map((sub) => (
             <Button key={sub} size="small" onClick={() => applyBrandPreset(sub)}>{sub}</Button>
           ))}
@@ -194,7 +194,7 @@ export default function ContactsPage({ data }) {
       {total > 0 && (
         <div style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50,
-          background: '#fff', borderTop: '1px solid #e8e8e8', boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
+          background: 'var(--surface)', borderTop: '1px solid var(--border)', boxShadow: '0 -2px 8px var(--shadow)',
           padding: '12px 32px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
         }}>
           <b style={{ color: TO_COLOR }}>收件者 {toSel.length} 位</b>

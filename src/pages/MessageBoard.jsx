@@ -35,7 +35,7 @@ function useObjectUrls(files) {
 function Thumb({ src, onRemove }) {
   return (
     <div style={{ position: 'relative' }}>
-      <img src={src} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+      <img src={src} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
       <Button size="small" danger shape="circle" icon={<DeleteOutlined />}
         style={{ position: 'absolute', top: -8, right: -8 }} onClick={onRemove} />
     </div>
@@ -227,9 +227,9 @@ export default function MessageBoardPage() {
       {!rows.length ? (
         <Empty description="目前還沒有留言，來留第一則吧！" />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 14px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 14px' }}>
           {rows.map((m) => (
-            <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid #f5f5f5', opacity: m.resolved && editingId !== m.id ? 0.55 : 1 }}>
+            <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid var(--border-soft)', opacity: m.resolved && editingId !== m.id ? 0.55 : 1 }}>
               {editingId === m.id ? (
                 <div style={{ flex: 1 }}>
                   <Space direction="vertical" style={{ width: '100%' }}>
@@ -273,7 +273,7 @@ export default function MessageBoardPage() {
                         <Space wrap>
                           {m.images.map((path, i) => (
                             <Image key={i} src={imgPublicUrl(path)}
-                              style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} />
+                              style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
                           ))}
                         </Space>
                       </Image.PreviewGroup>

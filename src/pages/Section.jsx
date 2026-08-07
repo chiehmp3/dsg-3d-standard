@@ -28,7 +28,7 @@ function ReadView({ entries }) {
               label: <CardHeader entry={e} />,
               children: <CardBody entry={e} />,
             }))}
-            style={{ background: '#fff', marginBottom: 12 }}
+            style={{ background: 'var(--surface)', marginBottom: 12 }}
           />
         </div>
       ))}
@@ -44,12 +44,12 @@ function SortableRow({ entry }) {
     opacity: isDragging ? 0.5 : 1,
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '12px 14px', marginBottom: 8,
-    background: '#fff', border: '1px dashed #f89b34', borderRadius: 8,
+    background: 'var(--surface)', border: '1px dashed var(--accent)', borderRadius: 8,
     cursor: 'grab',
   };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <HolderOutlined style={{ color: '#f89b34' }} />
+      <HolderOutlined style={{ color: 'var(--accent)' }} />
       <CardHeader entry={entry} />
     </div>
   );
@@ -90,7 +90,7 @@ export default function SectionPage({ section, data }) {
           <Button icon={<SwapOutlined rotate={90} />} onClick={startReorder} disabled={!entries.length}>調整排序</Button>
         ) : (
           <>
-            <span style={{ color: 'rgba(0,0,0,0.5)' }}>拖曳卡片調整順序，完成後按「鎖定」</span>
+            <span style={{ color: 'var(--text-muted)' }}>拖曳卡片調整順序，完成後按「鎖定」</span>
             <Button type="primary" icon={<LockOutlined />} onClick={lock}>鎖定並儲存</Button>
             <Button onClick={() => setEditing(false)}>取消</Button>
           </>
@@ -118,7 +118,7 @@ export default function SectionPage({ section, data }) {
           <Button key="close" onClick={() => setSql(null)}>關閉</Button>,
         ]}
       >
-        <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13 }}>要讓所有人都看到這個順序，請把下面 SQL 貼到 Supabase → SQL Editor → Run。</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>要讓所有人都看到這個順序，請把下面 SQL 貼到 Supabase → SQL Editor → Run。</p>
         <Input.TextArea value={sql || ''} readOnly autoSize={{ minRows: 6, maxRows: 12 }} style={{ fontFamily: 'DM Mono, monospace', fontSize: 12 }} />
       </Modal>
     </div>

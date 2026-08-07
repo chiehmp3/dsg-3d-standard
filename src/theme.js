@@ -1,20 +1,35 @@
 // antd 主題與共用常數
+import { theme as antdTheme } from 'antd';
 
-export const theme = {
-  token: {
-    colorPrimary: '#006150',
-    colorInfo: '#006150',
-    colorLink: '#006150',
-    borderRadius: 8,
-    fontFamily: "'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    fontSize: 14,
-  },
-  components: {
-    Layout: { siderBg: '#ffffff', headerBg: '#ffffff', bodyBg: '#f5f5f5' },
-    Menu: { itemSelectedBg: 'rgba(0,97,80,0.10)', itemSelectedColor: '#006150', itemBorderRadius: 8 },
-    Collapse: { headerBg: '#ffffff' },
-  },
-};
+// 亮／暗兩套 antd 主題。CSS 變數那一套（index.css）負責我們自己寫的樣式，
+// 這裡負責 antd 元件；兩邊的色值要對齊，改一邊記得改另一邊。
+export function buildTheme(dark) {
+  const brand = dark ? '#4dcaad' : '#006150';
+  return {
+    algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+    token: {
+      colorPrimary: brand,
+      colorInfo: brand,
+      colorLink: brand,
+      // 實心主色按鈕上的文字。夜間的薄荷綠夠亮，配白字只有 2.7:1（低於 WCAG AA），改用深色墨
+      ...(dark ? { colorTextLightSolid: '#10241f' } : {}),
+      borderRadius: 8,
+      fontFamily: "'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontSize: 14,
+    },
+    components: {
+      Layout: dark
+        ? { siderBg: '#1f1f1f', headerBg: '#1f1f1f', bodyBg: '#141414' }
+        : { siderBg: '#ffffff', headerBg: '#ffffff', bodyBg: '#f5f5f5' },
+      Menu: {
+        itemSelectedBg: dark ? 'rgba(77,202,173,0.16)' : 'rgba(0,97,80,0.10)',
+        itemSelectedColor: brand,
+        itemBorderRadius: 8,
+      },
+      Collapse: { headerBg: dark ? '#1f1f1f' : '#ffffff' },
+    },
+  };
+}
 
 // 三種來源標籤 → 明顯不同色相（官方=綠、內部=藍、重要=紅）
 export const SOURCE_TAG = {

@@ -42,10 +42,10 @@ export default function DatabasePage({ section, data }) {
 
   return (
     <div>
-      <Card size="small" style={{ marginBottom: 20, borderColor: '#006150', background: '#f6fbf9' }}>
+      <Card size="small" style={{ marginBottom: 20, borderColor: 'var(--brand)', background: 'var(--brand-bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 20 }}>🖥️</span>
-          <span style={{ color: 'rgba(0,0,0,0.55)' }}>目前 CLO 版本</span>
+          <span style={{ color: 'var(--text-muted)' }}>目前 CLO 版本</span>
           {editing ? (
             <Space>
               <Input value={draft} onChange={(e) => setDraft(e.target.value)} onPressEnter={save}
@@ -55,11 +55,11 @@ export default function DatabasePage({ section, data }) {
             </Space>
           ) : (
             <>
-              <b className="mono" style={{ fontSize: 20, color: '#006150' }}>{version || '—'}</b>
+              <b className="mono" style={{ fontSize: 20, color: 'var(--brand)' }}>{version || '—'}</b>
               {loggedIn ? (
                 <Button size="small" icon={<EditOutlined />} onClick={startEdit}>編輯</Button>
               ) : (
-                <Button size="small" type="text" onClick={() => setLoginOpen(true)} style={{ color: 'rgba(0,0,0,0.45)' }}>🔒 登入以編輯</Button>
+                <Button size="small" type="text" onClick={() => setLoginOpen(true)} style={{ color: 'var(--text-muted)' }}>🔒 登入以編輯</Button>
               )}
             </>
           )}

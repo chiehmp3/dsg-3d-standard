@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Layout, Menu, Input, Spin, Alert, Empty, Button, Space } from 'antd';
+import { Layout, Menu, Input, Spin, Alert, Empty, Button, Space, Tooltip } from 'antd';
+import { SunOutlined, MoonOutlined } from '@ant-design/icons';
 import { loadAll } from './data';
 import { sb } from './supabase';
 import SectionPage from './pages/Section';
@@ -18,7 +19,7 @@ const EXTRA_MGMT = [
   { key: 'feedback', label: '💬 留言板' },
 ];
 
-export default function App() {
+export default function App({ dark, onToggleDark }) {
   const [data, setData] = useState(null);
   const [slug, setSlug] = useState(null);
   const [query, setQuery] = useState('');
@@ -83,17 +84,22 @@ export default function App() {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid #f0f0f0', padding: '0 20px' }}>
+      <Header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid var(--border)', padding: '0 20px' }}>
         <span className="dsg-logo">DSG</span>
-        <span style={{ fontSize: 18, fontWeight: 500 }}>DSG 3D Standard</span>
+        <span style={{ fontSize: 18, fontWeight: 500, flex: 1 }}>DSG 3D Standard</span>
+        <Tooltip title={dark ? '切換為日間模式' : '切換為夜間模式'}>
+          <Button type="text" shape="circle" onClick={onToggleDark}
+            icon={dark ? <SunOutlined /> : <MoonOutlined />} aria-label="切換日夜模式" />
+        </Tooltip>
       </Header>
       <Layout>
-        <Sider width={248} theme="light" breakpoint="lg" collapsedWidth={0} style={{ borderRight: '1px solid #f0f0f0', overflow: 'auto' }}>
+        <Sider width={248} theme={dark ? 'dark' : 'light'} breakpoint="lg" collapsedWidth={0} style={{ borderRight: '1px solid var(--border)', overflow: 'auto' }}>
           <div style={{ padding: 12 }}>
             <Input.Search placeholder="搜尋…" allowClear value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
+          {/* 背景設透明才會吃 Sider 的底色；否則夜間模式選單是 #141414、Sider 是 #1f1f1f，會有一塊色差 */}
           <Menu mode="inline" selectedKeys={[query.trim() ? '' : slug]} items={menuItems}
-            onClick={({ key }) => { setQuery(''); setSlug(key); }} style={{ borderInlineEnd: 'none' }} />
+            onClick={({ key }) => { setQuery(''); setSlug(key); }} style={{ borderInlineEnd: 'none', background: 'transparent' }} />
         </Sider>
         <Content style={{ overflow: 'auto', padding: '24px 32px' }}>{renderContent()}</Content>
       </Layout>

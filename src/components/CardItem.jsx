@@ -45,7 +45,7 @@ function PathRow({ raw }) {
   const copyPath = () => { navigator.clipboard.writeText(value); message.success('已複製路徑，貼到檔案總管網址列即可開啟'); };
   return (
     <div className="path-row">
-      {label && <span style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, minWidth: 120 }}>{label}</span>}
+      {label && <span style={{ color: 'var(--text-muted)', fontSize: 13, minWidth: 120 }}>{label}</span>}
       {isUrl ? (
         <>
           <Button size="small" icon={<LinkOutlined />} href={value} target="_blank">開啟</Button>
@@ -97,7 +97,9 @@ export function CardBody({ entry }) {
         <div className="card-imgs" style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
           <Image.PreviewGroup>
             {images.map((p, i) => (
-              <Image key={i} src={imgUrl(p)} style={{ maxWidth: '100%', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }} />
+              /* 底色固定白色（不跟著夜間模式）：這些截圖都是 CLO 的淺色介面，
+                 有些還是去背 PNG，墊深色底反而看不清楚 */
+              <Image key={i} src={imgUrl(p)} style={{ maxWidth: '100%', border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }} />
             ))}
           </Image.PreviewGroup>
         </div>
