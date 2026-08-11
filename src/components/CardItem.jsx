@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tag, Typography, Image, Button, message } from 'antd';
 import { LinkOutlined, MailOutlined, CopyOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import { imgUrl, SOURCE_TAG } from '../theme';
@@ -82,11 +82,31 @@ export function CardHeader({ entry }) {
 
 // 底色固定白色（不跟著夜間模式）：這些截圖都是 CLO 的淺色介面，
 // 有些還是去背 PNG，墊深色底反而看不清楚
-function CardImage({ src }) {
+function CardImage({ src, maxHeight, onLoad }) {
   return (
-    <Image src={imgUrl(src)}
-      style={{ maxWidth: '100%', border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }} />
+    <Image src={imgUrl(src)} onLoad={onLoad}
+      style={{
+        maxWidth: '100%', border: '1px solid var(--border)', borderRadius: 8, background: '#fff',
+        ...(maxHeight ? { maxHeight, width: 'auto' } : null),
+      }} />
   );
+}
+
+// 量主圖實際的顯示高度，讓後面的圖跟它切齊。
+// 高度要等圖載完才知道，寬幅圖被壓成滿版時還會隨視窗寬度變，所以這兩個時機都重量一次。
+function useRenderedHeight() {
+  const ref = useRef(null);
+  const [height, setHeight] = useState(null);
+  const measure = useCallback(() => {
+    const h = ref.current?.getBoundingClientRect().height;
+    setHeight(h ? Math.round(h) : null);
+  }, []);
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+  return [ref, height, measure];
 }
 
 // 卡片內容（展開後顯示）
@@ -94,6 +114,7 @@ export function CardBody({ entry }) {
   const paths = entry.paths || [];
   const images = entry.images || [];
   const hasContent = !!entry.content;
+  const [mainRef, mainHeight, measureMain] = useRenderedHeight();
   return (
     <div>
       {hasContent && <div className="card-content">{linkify(entry.content)}</div>}
@@ -103,13 +124,16 @@ export function CardBody({ entry }) {
         </div>
       )}
       {images.length > 0 && (
-        // 第一張是主圖，維持原尺寸自己一列；其餘（如果有）並排成一列，免得整張卡拉得太長
+        // 第一張是主圖，維持原尺寸自己一列；其餘（如果有）並排成一列並與主圖等高，
+        // 免得整張卡拉得太長。要看細節點圖放大就是原尺寸
         <div className="card-imgs" style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
           <Image.PreviewGroup>
-            <CardImage src={images[0]} />
+            <div className="card-imgs-main" ref={mainRef}>
+              <CardImage src={images[0]} onLoad={measureMain} />
+            </div>
             {images.length > 1 && (
               <div className="card-imgs-rest">
-                {images.slice(1).map((p, i) => <CardImage key={i} src={p} />)}
+                {images.slice(1).map((p, i) => <CardImage key={i} src={p} maxHeight={mainHeight} />)}
               </div>
             )}
           </Image.PreviewGroup>

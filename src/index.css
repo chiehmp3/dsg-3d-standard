@@ -64,11 +64,10 @@ body {
 
 .card-imgs { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
 
-/* 第二張之後的圖並排成一列，卡片才不會被拉得太長。主圖不受影響，維持原尺寸。
-   640px 是量出來的——Hood 卡那兩張人台圖切掉兩側空白後合計寬高比 1.10，
-   內容區約 910px 寬，並排放得下還有餘裕。視窗更窄或圖太寬時會自動換行。 */
+/* 主圖維持原尺寸；第二張之後並排成一列，高度由 JS 量主圖後對齊（見 CardItem 的 useRenderedHeight）。
+   flex 是為了讓外框高度剛好等於圖片高度，inline-block 會多出幾 px 的行距。 */
+.card-imgs-main { display: flex; max-width: 100%; }
 .card-imgs-rest { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; width: 100%; }
-.card-imgs-rest img { max-height: 640px; width: auto; }
 
 /* 分組按鈕列：第二層標題放在內容上方，點按鈕下方直接顯示內容 */
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
