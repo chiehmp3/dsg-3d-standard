@@ -64,10 +64,12 @@ body {
 
 .card-imgs { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
 
-/* 主圖維持原尺寸；第二張之後並排成一列，高度由 JS 量主圖後對齊（見 CardItem 的 useRenderedHeight）。
-   flex 是為了讓外框高度剛好等於圖片高度，inline-block 會多出幾 px 的行距。 */
-.card-imgs-main { display: flex; max-width: 100%; }
-.card-imgs-rest { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; width: 100%; }
+/* 多張圖並排成一列：每格的 flex-grow 由 JS 依圖片長寬比設定（見 CardItem），
+   寬度就會跟長寬比成正比，三張圖自然等高且剛好填滿整列。 */
+.card-imgs-cell { max-width: 100%; min-width: 0; }
+.card-imgs-row { flex-direction: row; align-items: flex-start; gap: 12px; width: 100%; }
+.card-imgs-row .card-imgs-cell .ant-image { display: block; width: 100%; }
+.card-imgs-row .card-imgs-cell img { width: 100%; height: auto; }
 
 /* 分組按鈕列：第二層標題放在內容上方，點按鈕下方直接顯示內容 */
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
