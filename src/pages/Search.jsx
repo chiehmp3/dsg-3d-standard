@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import { Empty, Tag } from 'antd';
 import { SOURCE_TAG } from '../theme';
 
+// 沒有自己分頁的 section（內容顯示在流程頁裡），搜尋結果要導到實際看得到的地方
+const HIDDEN_TARGET = { stages: 'prefit-flow', 'quick-paths': 'prefit-flow' };
+
 export default function SearchPage({ data, query, onOpen }) {
   const kws = query.toLowerCase().split(/\s+/).filter(Boolean);
   const entryHits = useMemo(() => data.entries.filter((e) => {
@@ -15,7 +18,12 @@ export default function SearchPage({ data, query, onOpen }) {
 
   if (!entryHits.length && !contactHits.length) return <Empty description="找不到相關結果，試試其他關鍵字" />;
 
-  const sectionOf = (id) => data.sections.find((s) => s.id === id);
+  // 隱藏的 section 換成它實際顯示的那一頁，免得搜尋結果點下去跳到看不到的分頁
+  const sectionOf = (id) => {
+    const sec = data.sections.find((s) => s.id === id);
+    const target = sec && HIDDEN_TARGET[sec.slug];
+    return target ? data.sections.find((s) => s.slug === target) || sec : sec;
+  };
 
   return (
     <div>

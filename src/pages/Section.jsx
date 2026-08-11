@@ -7,9 +7,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { groupByName } from '../data';
 import { CardHeader, CardBody } from '../components/CardItem';
 import GroupButtons from '../components/GroupButtons';
+import { StageBar, StageInfo, QuickPaths, FIRST_STAGE, stageLabel, STAGE_INFO_SLUG, QUICK_PATHS_SLUG } from '../components/StageBar';
 
 // 卡片較多的頁面：不用手風琴，改用頁面上方的分組按鈕列（點按鈕，下面直接顯示內容）
 const BUTTON_LAYOUT_SLUGS = ['prefit', 'prefit-flow', 'detail-flow', 'upload'];
+
+// 依開發階段分流的頁面：上方多一排 Stage 按鈕，只顯示該階段的卡片
+const STAGE_LAYOUT_SLUGS = ['prefit-flow', 'detail-flow'];
+const SKIP_NOTE = { 'prefit-flow': '不需 Prefit', 'detail-flow': '不需細節' };
 
 // 一般（唯讀）檢視：依 group_name 分子群組，每群組一個 Collapse
 function ReadView({ entries }) {
@@ -57,12 +62,31 @@ function SortableRow({ entry }) {
 
 export default function SectionPage({ section, data }) {
   const { message } = App.useApp();
-  const entries = useMemo(
+  const isStageLayout = STAGE_LAYOUT_SLUGS.includes(section.slug);
+  const [stage, setStage] = useState(FIRST_STAGE);
+
+  const sectionEntries = useMemo(
     () => data.entries
       .filter((e) => e.section_id === section.id)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
     [data.entries, section.id],
   );
+  // 分階段的頁面一次只看一個階段，排序、顯示都只針對目前這個階段的卡片
+  const entries = useMemo(
+    () => (isStageLayout ? sectionEntries.filter((e) => e.stage === stage) : sectionEntries),
+    [sectionEntries, isStageLayout, stage],
+  );
+
+  // 階段說明與常用路徑存在不顯示於側邊欄的 section，兩個流程頁共用同一份資料
+  const stageInfo = useMemo(() => {
+    const sec = data.sections.find((s) => s.slug === STAGE_INFO_SLUG);
+    return sec ? data.entries.find((e) => e.section_id === sec.id && e.stage === stage) : null;
+  }, [data.sections, data.entries, stage]);
+  const quickPaths = useMemo(() => {
+    const sec = data.sections.find((s) => s.slug === QUICK_PATHS_SLUG);
+    return sec ? data.entries.find((e) => e.section_id === sec.id) : null;
+  }, [data.sections, data.entries]);
+
   const [editing, setEditing] = useState(false);
   const [order, setOrder] = useState([]);
   const [sql, setSql] = useState(null);
@@ -85,6 +109,14 @@ export default function SectionPage({ section, data }) {
 
   return (
     <div>
+      {isStageLayout && (
+        <>
+          <StageBar value={stage} onChange={setStage} skipNote={SKIP_NOTE[section.slug]} />
+          <StageInfo entry={stageInfo} />
+          <QuickPaths entry={quickPaths} />
+        </>
+      )}
+
       <Space style={{ marginBottom: 16 }}>
         {!editing ? (
           <Button icon={<SwapOutlined rotate={90} />} onClick={startReorder} disabled={!entries.length}>調整排序</Button>
@@ -104,7 +136,10 @@ export default function SectionPage({ section, data }) {
           </SortableContext>
         </DndContext>
       ) : BUTTON_LAYOUT_SLUGS.includes(section.slug) ? (
-        <GroupButtons entries={entries} />
+        <GroupButtons
+          entries={entries}
+          emptyText={isStageLayout ? `${stageLabel(stage)} 階段的內容還沒建立` : undefined}
+        />
       ) : (
         <ReadView entries={entries} />
       )}

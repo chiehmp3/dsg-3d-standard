@@ -19,6 +19,12 @@ const EXTRA_MGMT = [
   { key: 'feedback', label: '💬 留言板' },
 ];
 
+// 這兩個 section 只當資料容器，沒有自己的分頁：
+// stages = 六個階段的說明，顯示在 Prefit流程／細節流程 上方
+// quick-paths = 常用路徑 & 連結，兩個流程頁共用
+const HIDDEN_SLUGS = ['stages', 'quick-paths'];
+const isVisible = (s) => !HIDDEN_SLUGS.includes(s.slug);
+
 export default function App({ dark, onToggleDark }) {
   const [data, setData] = useState(null);
   const [slug, setSlug] = useState(null);
@@ -27,9 +33,10 @@ export default function App({ dark, onToggleDark }) {
   useEffect(() => {
     loadAll().then((d) => {
       setData(d);
+      const visible = d.sections.filter(isVisible);
       const h = decodeURIComponent(location.hash.replace('#', ''));
-      const valid = d.sections.some((s) => s.slug === h) || h === 'contacts' || h === 'feedback';
-      setSlug(valid && h ? h : d.sections[0]?.slug || null);
+      const valid = visible.some((s) => s.slug === h) || h === 'contacts' || h === 'feedback';
+      setSlug(valid && h ? h : visible[0]?.slug || null);
     });
   }, []);
   useEffect(() => { if (slug && !query.trim()) location.hash = slug; }, [slug, query]);
@@ -37,7 +44,7 @@ export default function App({ dark, onToggleDark }) {
   const menuItems = useMemo(() => {
     if (!data) return [];
     const bySide = {}, order = [];
-    data.sections.forEach((s) => { if (!bySide[s.group_name]) { bySide[s.group_name] = []; order.push(s.group_name); } bySide[s.group_name].push(s); });
+    data.sections.filter(isVisible).forEach((s) => { if (!bySide[s.group_name]) { bySide[s.group_name] = []; order.push(s.group_name); } bySide[s.group_name].push(s); });
     return order.map((gn) => ({
       type: 'group', label: gn,
       children: [

@@ -16,14 +16,14 @@ function buildChips(entries) {
   ));
 }
 
-export default function GroupButtons({ entries }) {
+export default function GroupButtons({ entries, emptyText }) {
   const chips = useMemo(() => buildChips(entries), [entries]);
   const [activeKey, setActiveKey] = useState(chips[0]?.key);
   useEffect(() => {
     if (!chips.some((c) => c.key === activeKey)) setActiveKey(chips[0]?.key);
   }, [chips]);
 
-  if (!entries.length) return <Empty description="此分類尚無內容" />;
+  if (!entries.length) return <Empty description={emptyText || '此分類尚無內容'} />;
   const active = chips.find((c) => c.key === activeKey) || chips[0];
 
   return (

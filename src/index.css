@@ -68,3 +68,15 @@ body {
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .chip-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
 .chip-panel-head { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+
+/* 開發階段列（PROTO → FIT → … → PP），反灰的階段下方標注不適用的原因 */
+.stage-bar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-bottom: 18px; }
+.stage-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.stage-arrow { color: var(--text-muted); line-height: 32px; }
+.stage-note { font-size: 11px; color: var(--text-muted); }
+
+.stage-info {
+  background: var(--brand-tint); border: 1px solid var(--brand-tint-strong);
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+}
+.stage-info-title { font-weight: 700; color: var(--brand); margin-bottom: 6px; }
