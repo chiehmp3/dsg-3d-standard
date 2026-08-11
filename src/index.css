@@ -64,6 +64,12 @@ body {
 
 .card-imgs { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
 
+/* 多張圖：改成橫排並統一高度，一個畫面看得完；點圖仍可放大看原尺寸。
+   280px 是量出來的——Hood 那張卡三張圖（1 橫 2 直）加起來的寬高比是 2.91，
+   內容區約 910px 寬，高度壓到 280 才排得下一列還留餘裕。視窗更窄時會自動換行。 */
+.card-imgs-multi { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.card-imgs-multi img { max-height: 280px; width: auto; }
+
 /* 分組按鈕列：第二層標題放在內容上方，點按鈕下方直接顯示內容 */
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .chip-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }

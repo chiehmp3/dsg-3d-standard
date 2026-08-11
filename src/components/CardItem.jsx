@@ -94,7 +94,9 @@ export function CardBody({ entry }) {
         </div>
       )}
       {images.length > 0 && (
-        <div className="card-imgs" style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
+        // 多張圖並排成一列（壓高度讓一個畫面看得完），單張圖維持原尺寸
+        <div className={images.length > 1 ? 'card-imgs card-imgs-multi' : 'card-imgs'}
+          style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
           <Image.PreviewGroup>
             {images.map((p, i) => (
               /* 底色固定白色（不跟著夜間模式）：這些截圖都是 CLO 的淺色介面，
