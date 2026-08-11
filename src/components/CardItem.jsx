@@ -80,6 +80,15 @@ export function CardHeader({ entry }) {
   );
 }
 
+// 底色固定白色（不跟著夜間模式）：這些截圖都是 CLO 的淺色介面，
+// 有些還是去背 PNG，墊深色底反而看不清楚
+function CardImage({ src }) {
+  return (
+    <Image src={imgUrl(src)}
+      style={{ maxWidth: '100%', border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }} />
+  );
+}
+
 // 卡片內容（展開後顯示）
 export function CardBody({ entry }) {
   const paths = entry.paths || [];
@@ -94,15 +103,15 @@ export function CardBody({ entry }) {
         </div>
       )}
       {images.length > 0 && (
-        // 多張圖並排成一列（壓高度讓一個畫面看得完），單張圖維持原尺寸
-        <div className={images.length > 1 ? 'card-imgs card-imgs-multi' : 'card-imgs'}
-          style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
+        // 第一張是主圖，維持原尺寸自己一列；其餘（如果有）並排成一列，免得整張卡拉得太長
+        <div className="card-imgs" style={{ marginTop: hasContent || paths.length ? 12 : 0 }}>
           <Image.PreviewGroup>
-            {images.map((p, i) => (
-              /* 底色固定白色（不跟著夜間模式）：這些截圖都是 CLO 的淺色介面，
-                 有些還是去背 PNG，墊深色底反而看不清楚 */
-              <Image key={i} src={imgUrl(p)} style={{ maxWidth: '100%', border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }} />
-            ))}
+            <CardImage src={images[0]} />
+            {images.length > 1 && (
+              <div className="card-imgs-rest">
+                {images.slice(1).map((p, i) => <CardImage key={i} src={p} />)}
+              </div>
+            )}
           </Image.PreviewGroup>
         </div>
       )}
