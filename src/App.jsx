@@ -18,7 +18,7 @@ const { Sider, Header, Content } = Layout;
 const EXTRA_MGMT = [
   { key: 'contacts', label: '👥 聯絡人' },
   { key: 'feedback', label: '💬 留言板' },
-  { key: 'accounts', label: '🔑 常用帳密' },
+  { key: 'accounts', label: '🔑 常用帳密與連結' },
 ];
 
 // 這兩個 section 只當資料容器，沒有自己的分頁：
@@ -75,7 +75,7 @@ export default function App({ dark, onToggleDark }) {
     if (query.trim()) return <SearchPage data={data} query={query} onOpen={(s) => { setQuery(''); setSlug(s); }} />;
     if (slug === 'contacts') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>👥 聯絡人</h1><ContactsPage data={data} /></>;
     if (slug === 'feedback') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>💬 留言板</h1><MessageBoardPage /></>;
-    if (slug === 'accounts') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>🔑 常用帳密</h1><CredentialsPage data={data} /></>;
+    if (slug === 'accounts') return <><h1 style={{ fontSize: 24, marginTop: 0 }}>🔑 常用帳密與連結</h1><CredentialsPage data={data} /></>;
     const section = data.sections.find((s) => s.slug === slug);
     if (!section) return <Empty description="找不到此分類" />;
     let body;
