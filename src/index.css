@@ -87,3 +87,8 @@ body {
   border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
 }
 .stage-info-title { font-weight: 700; color: var(--brand); margin-bottom: 6px; }
+
+/* 常用帳密卡片：標籤、值、複製鈕排成一列 */
+.cred-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.cred-key { color: var(--text-muted); font-size: 13px; min-width: 36px; flex-shrink: 0; }
+.cred-val { flex: 1; min-width: 0; word-break: break-all; }

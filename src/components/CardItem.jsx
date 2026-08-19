@@ -4,7 +4,7 @@ import { LinkOutlined, MailOutlined, CopyOutlined, EyeOutlined, EyeInvisibleOutl
 import { imgUrl, SOURCE_TAG } from '../theme';
 
 // 點擊才顯示的內容（例如密碼），避免明文一直露在畫面上被路過的人看到
-function Reveal({ text }) {
+export function Reveal({ text }) {
   const [shown, setShown] = useState(false);
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
