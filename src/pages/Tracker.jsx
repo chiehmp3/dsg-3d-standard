@@ -12,13 +12,20 @@ const STATUS_COLOR = {
 const statusLabel = (s) => (s && String(s).trim()) || '未上傳';
 const statusColor = (s) => STATUS_COLOR[statusLabel(s)] || 'default';
 
-// 摘要樞紐表可選的「列」分類；選「狀態」時欄位改用季度（其餘分類欄位固定用狀態）
+// 摘要樞紐表的列分類。欄分類另有一組（見 SUMMARY_COL_OPTIONS），兩邊可自由搭配，
+// 例如「列＝布料、欄＝季度」就能看出哪一季哪塊布用得最多
 const SUMMARY_GROUP_OPTIONS = [
   { value: 'season', label: '季度' },
   { value: 'brand', label: '品牌' },
   { value: 'fabric', label: '布料' },
   { value: 'due', label: '交期' },
   { value: 'status', label: '狀態' },
+];
+
+const SUMMARY_COL_OPTIONS = [
+  { value: 'status', label: '狀態' },
+  { value: 'season', label: '季度' },
+  { value: 'brand', label: '品牌' },
 ];
 
 // 篩選／排序記在瀏覽器 localStorage，離開頁面再回來不會重置
@@ -98,11 +105,12 @@ export default function TrackerPage({ data }) {
   const [search, setSearch] = useState(saved.search || '');
   const [crossSeason, setCrossSeason] = useState(saved.crossSeason || false);
   const [summaryGroupBy, setSummaryGroupBy] = useState(saved.summaryGroupBy || 'season');
+  const [summaryColBy, setSummaryColBy] = useState(saved.summaryColBy || 'status');
   useEffect(() => {
     localStorage.setItem(TRACKER_FILTERS_KEY, JSON.stringify({
-      view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy,
+      view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy, summaryColBy,
     }));
-  }, [view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy]);
+  }, [view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy, summaryColBy]);
   const rows = data.sampleRequests || [];
 
   const allBrands = useMemo(
@@ -251,15 +259,20 @@ export default function TrackerPage({ data }) {
     const filtered = applyFilters(rows);
     if (!filtered.length) return <Empty description="沒有符合條件的款式" />;
 
-    const colIsSeason = summaryGroupBy === 'status';
-    const rowKeyFn = {
+    const keyFns = {
       season: (r) => r.season,
       brand: (r) => r.brand,
       fabric: (r) => r.fabric,
       due: (r) => r.sample_due,
       status: (r) => statusLabel(effStatus(r)),
-    }[summaryGroupBy];
-    const colKeyFn = colIsSeason ? (r) => r.season : (r) => statusLabel(effStatus(r));
+    };
+    // 列和欄選到同一種分類會排出一張對角線表，沒有意義，這時欄自動退回狀態（狀態當列時退回季度）
+    const colBy = summaryColBy === summaryGroupBy
+      ? (summaryGroupBy === 'status' ? 'season' : 'status')
+      : summaryColBy;
+    const colIsStatus = colBy === 'status';
+    const rowKeyFn = keyFns[summaryGroupBy];
+    const colKeyFn = keyFns[colBy];
 
     const { g: byRow, order: rowOrder } = groupBy(filtered, rowKeyFn, '未填');
     if (summaryGroupBy === 'season') rowOrder.sort(seasonCmp);
@@ -267,33 +280,46 @@ export default function TrackerPage({ data }) {
 
     const rowsData = rowOrder.map((key) => {
       const list = byRow[key];
-      const { g: byCol } = groupBy(list, colKeyFn, colIsSeason ? '未分類' : '未上傳');
-      const done = (byCol['已上傳'] || []).length + (byCol['已完成'] || []).length;
+      const { g: byCol } = groupBy(list, colKeyFn, colIsStatus ? '未上傳' : '未分類');
+      const done = list.filter((r) => ['已上傳', '已完成'].includes(statusLabel(effStatus(r)))).length;
       return { key, total: list.length, pct: Math.round((done / list.length) * 100), byCol };
     });
-    const usedCols = colIsSeason
-      ? seasons.filter((s) => rowsData.some((r) => (r.byCol[s] || []).length > 0))
-      : [...STATUS_OPTIONS, '未上傳'].filter((st) => rowsData.some((r) => (r.byCol[st] || []).length > 0));
+    // 只列出真的有資料的欄，避免整排全零把表撐爆
+    const colUniverse = {
+      status: [...STATUS_OPTIONS, '未上傳'],
+      season: [...seasons].sort(seasonCmp),
+      brand: [...allBrands].sort((a, b) => String(a).localeCompare(String(b))),
+    }[colBy];
+    const usedCols = colUniverse.filter((c) => rowsData.some((r) => (r.byCol[c] || []).length > 0));
 
     const rowLabel = SUMMARY_GROUP_OPTIONS.find((o) => o.value === summaryGroupBy).label;
     const columns = [
-      { title: rowLabel, dataIndex: 'key', key: 'key', fixed: 'left', render: (k) => <b>{summaryGroupBy === 'season' ? '📅 ' : ''}{k}</b> },
+      { title: rowLabel, dataIndex: 'key', key: 'key', fixed: 'left',
+        sorter: (a, b) => (summaryGroupBy === 'season' ? seasonCmp(a.key, b.key) : String(a.key).localeCompare(String(b.key))),
+        render: (k) => <b>{summaryGroupBy === 'season' ? '📅 ' : ''}{k}</b> },
       ...usedCols.map((c) => ({
         title: c, key: c, align: 'center',
+        sorter: (a, b) => (a.byCol[c] || []).length - (b.byCol[c] || []).length,
         render: (_, r) => {
           const n = (r.byCol[c] || []).length;
-          return n ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{n}</Tag> : <span style={{ color: 'var(--text-muted)' }}>–</span>;
+          return n ? <Tag color={colIsStatus ? statusColor(c) : undefined}>{n}</Tag> : <span style={{ color: 'var(--text-muted)' }}>–</span>;
         },
       })),
-      { title: '合計', key: 'total', align: 'center', render: (_, r) => <b>{r.total}</b> },
+      { title: '合計', key: 'total', align: 'center', sorter: (a, b) => a.total - b.total,
+        defaultSortOrder: null, render: (_, r) => <b>{r.total}</b> },
       // 選「狀態」當列時，每列本身就是一種狀態，「完成率」這個指標沒有意義，故不顯示
-      ...(colIsSeason ? [] : [{ title: '完成率', key: 'pct', align: 'center', render: (_, r) => <Tag color="green">{r.pct}%</Tag> }]),
+      ...(summaryGroupBy === 'status' ? [] : [{ title: '完成率', key: 'pct', align: 'center',
+        sorter: (a, b) => a.pct - b.pct, render: (_, r) => <Tag color="green">{r.pct}%</Tag> }]),
     ];
     return (
       <div>
         <Space style={{ margin: '12px 0' }}>
-          <span className="page-desc" style={{ margin: 0 }}>檢視依據：</span>
-          <Select value={summaryGroupBy} onChange={setSummaryGroupBy} style={{ width: 140 }} options={SUMMARY_GROUP_OPTIONS} />
+          <span className="page-desc" style={{ margin: 0 }}>列：</span>
+          <Select value={summaryGroupBy} onChange={setSummaryGroupBy} style={{ width: 120 }} options={SUMMARY_GROUP_OPTIONS} />
+          <span className="page-desc" style={{ margin: 0 }}>欄：</span>
+          <Select value={summaryColBy} onChange={setSummaryColBy} style={{ width: 120 }}
+            options={SUMMARY_COL_OPTIONS.filter((o) => o.value !== summaryGroupBy)} />
+          <span className="page-desc" style={{ margin: 0 }}>點欄位標題可依數量排序</span>
         </Space>
         <Table
           size="small" pagination={false} rowKey="key" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: 'var(--surface)' }}
@@ -308,11 +334,11 @@ export default function TrackerPage({ data }) {
                 <Table.Summary.Cell index={0}><b>總計</b></Table.Summary.Cell>
                 {usedCols.map((c, i) => (
                   <Table.Summary.Cell key={c} index={i + 1} align="center">
-                    {totalByCol[c] ? <Tag color={colIsSeason ? undefined : statusColor(c)}>{totalByCol[c]}</Tag> : <span style={{ color: 'var(--text-muted)' }}>–</span>}
+                    {totalByCol[c] ? <Tag color={colIsStatus ? statusColor(c) : undefined}>{totalByCol[c]}</Tag> : <span style={{ color: 'var(--text-muted)' }}>–</span>}
                   </Table.Summary.Cell>
                 ))}
                 <Table.Summary.Cell index={usedCols.length + 1} align="center"><b>{grandTotal}</b></Table.Summary.Cell>
-                {!colIsSeason && (
+                {summaryGroupBy !== 'status' && (
                   <Table.Summary.Cell index={usedCols.length + 2} align="center"><Tag color="green">{grandPct}%</Tag></Table.Summary.Cell>
                 )}
               </Table.Summary.Row>
