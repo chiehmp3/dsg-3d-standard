@@ -22,6 +22,18 @@ const SUMMARY_GROUP_OPTIONS = [
   { value: 'status', label: '狀態' },
 ];
 
+// 排序下拉的選項依分頁而定：款式進度排款號，季度摘要排合計次數
+const STYLE_SORT_OPTIONS = [
+  { value: 'default', label: '排序：預設' },
+  { value: 'style', label: '款號 A→Z' },
+  { value: 'style_desc', label: '款號 Z→A' },
+];
+const SUMMARY_SORT_OPTIONS = [
+  { value: 'default', label: '排序：預設' },
+  { value: 'total_desc', label: '合計 高→低' },
+  { value: 'total', label: '合計 低→高' },
+];
+
 const SUMMARY_COL_OPTIONS = [
   { value: 'status', label: '狀態' },
   { value: 'season', label: '季度' },
@@ -218,6 +230,7 @@ export default function TrackerPage({ data }) {
       </div>
     ));
   };
+  const sortOptions = view === 'summary' ? SUMMARY_SORT_OPTIONS : STYLE_SORT_OPTIONS;
   const filterBar = (
     <Space wrap style={{ margin: '12px 0' }}>
       <Select mode="multiple" allowClear placeholder="季度（全部）" value={seasonFilter} onChange={setSeasonFilter}
@@ -235,12 +248,8 @@ export default function TrackerPage({ data }) {
       <Select mode="multiple" allowClear placeholder="交期（全部）" value={dueFilter} onChange={setDueFilter}
         style={{ minWidth: 170 }} maxTagCount="responsive" showSearch optionFilterProp="label"
         options={allDueDates.map((d) => ({ value: d, label: d }))} />
-      <Select value={sortKey} onChange={setSortKey} style={{ minWidth: 130 }}
-        options={[
-          { value: 'default', label: '排序：預設' },
-          { value: 'style', label: '款號 A→Z' },
-          { value: 'style_desc', label: '款號 Z→A' },
-        ]} />
+      <Select value={sortOptions.some((o) => o.value === sortKey) ? sortKey : 'default'}
+        onChange={setSortKey} style={{ minWidth: 140 }} options={sortOptions} />
       <Input allowClear placeholder="搜尋款號 / 品名 / 布料" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 220 }} />
       {view === 'styles' && <Checkbox checked={crossSeason} onChange={(e) => setCrossSeason(e.target.checked)}>跨所有季度</Checkbox>}
     </Space>
@@ -303,6 +312,9 @@ export default function TrackerPage({ data }) {
       const done = list.filter((r) => ['已上傳', '已完成'].includes(statusLabel(effStatus(r)))).length;
       return { key, total: list.length, pct: Math.round((done / list.length) * 100), byCol };
     });
+    if (sortKey === 'total_desc') rowsData.sort((a, b) => b.total - a.total);
+    else if (sortKey === 'total') rowsData.sort((a, b) => a.total - b.total);
+
     // 只列出真的有資料的欄，避免整排全零把表撐爆
     const colUniverse = {
       status: [...STATUS_OPTIONS, '未上傳'],
