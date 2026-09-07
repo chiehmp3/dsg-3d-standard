@@ -34,6 +34,20 @@ function loadSavedFilters() {
   try { return JSON.parse(localStorage.getItem(TRACKER_FILTERS_KEY)) || {}; } catch { return {}; }
 }
 
+// 業務的布料欄偶爾一格填好幾塊布，用換行分隔，前面還會帶標示，例如：
+//   "1. DB245822-B-H / 2. DB245821-A-H / 3. TSP-900221"、"Body: 119556-DWR / Lining: TBA"、"上衣SZD6188D / 裙XS10340"
+// 不拆 + 和 /：+AM、+UPF 是後加工，X/J 是料號的一部分，都算同一塊布
+// （212333 與 212333-W+AM 後加工不同，是兩塊不同的布料，不可合併）。
+const FABRIC_SPLIT = /[\r\n、;；]+/;
+const stripFabricLabel = (s) => String(s)
+  .replace(/^\s*\d+\s*[.、)]\s*/, '')                  // 1. / 2) 這類編號
+  .replace(/^[^:：]{0,12}[:：]\s*/, '')                 // Body: / option 1 : / 裡布：
+  .replace(/^[\u4e00-\u9fa5]+(?=[A-Za-z0-9])/, '')     // 上衣SZD6188D → SZD6188D
+  // 只拿掉 (option N) 這種註記；(LKN1423) 之類的括號是料號的一部分，要留著
+  .replace(/\s*\(\s*option[^)]*\)\s*$/i, '')
+  .trim();
+const splitFabrics = (raw) => String(raw || '').split(FABRIC_SPLIT).map(stripFabricLabel).filter(Boolean);
+
 const SEASON_RANK = { SP: 1, SS: 1, SU: 2, FA: 3, AU: 3, HO: 4, WI: 4 };
 function seasonSortVal(s) {
   const m = String(s).match(/([A-Za-z]{2})\s*(\d{2}).*?Q\s*(\d)/i);
@@ -44,9 +58,14 @@ function seasonCmp(a, b) {
   const A = seasonSortVal(a), B = seasonSortVal(b);
   return A[0] - B[0] || A[1] - B[1] || A[2] - B[2] || String(a).localeCompare(String(b));
 }
+// keyFn 回傳陣列時，同一筆會被算進每一個分組（用在一款多塊布的情況）
 function groupBy(list, keyFn, fallback) {
   const g = {}, order = [];
-  list.forEach((r) => { const k = keyFn(r) || fallback; if (!g[k]) { g[k] = []; order.push(k); } g[k].push(r); });
+  list.forEach((r) => {
+    const raw = keyFn(r);
+    const keys = Array.isArray(raw) ? (raw.length ? raw : [fallback]) : [raw || fallback];
+    keys.forEach((k) => { if (!g[k]) { g[k] = []; order.push(k); } g[k].push(r); });
+  });
   return { g, order };
 }
 
@@ -118,7 +137,7 @@ export default function TrackerPage({ data }) {
     [rows],
   );
   const allFabrics = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.fabric).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    () => Array.from(new Set(rows.flatMap((r) => splitFabrics(r.fabric)))).sort((a, b) => a.localeCompare(b)),
     [rows],
   );
   const allDueDates = useMemo(
@@ -180,7 +199,7 @@ export default function TrackerPage({ data }) {
     if (seasonFilter.length) out = out.filter((r) => seasonFilter.includes(r.season));
     if (brandFilter.length) out = out.filter((r) => brandFilter.includes(r.brand));
     if (statusFilter.length) out = out.filter((r) => statusFilter.includes(statusLabel(effStatus(r))));
-    if (fabricFilter.length) out = out.filter((r) => fabricFilter.includes(r.fabric));
+    if (fabricFilter.length) out = out.filter((r) => splitFabrics(r.fabric).some((f) => fabricFilter.includes(f)));
     if (dueFilter.length) out = out.filter((r) => dueFilter.includes(r.sample_due));
     const q = search.trim().toLowerCase();
     if (q) out = out.filter((r) => `${r.style_no || ''} ${r.product || ''} ${r.style_name || ''} ${r.fabric || ''}`.toLowerCase().includes(q));
@@ -262,7 +281,7 @@ export default function TrackerPage({ data }) {
     const keyFns = {
       season: (r) => r.season,
       brand: (r) => r.brand,
-      fabric: (r) => r.fabric,
+      fabric: (r) => splitFabrics(r.fabric),
       due: (r) => r.sample_due,
       status: (r) => statusLabel(effStatus(r)),
     };
@@ -319,14 +338,21 @@ export default function TrackerPage({ data }) {
           <span className="page-desc" style={{ margin: 0 }}>欄：</span>
           <Select value={summaryColBy} onChange={setSummaryColBy} style={{ width: 120 }}
             options={SUMMARY_COL_OPTIONS.filter((o) => o.value !== summaryGroupBy)} />
-          <span className="page-desc" style={{ margin: 0 }}>點欄位標題可依數量排序</span>
+          <span className="page-desc" style={{ margin: 0 }}>
+            點欄位標題可依數量排序{summaryGroupBy === 'fabric' ? '；一款用多塊布會在每塊布各算一次，故各列相加會多於總計' : ''}
+          </span>
         </Space>
         <Table
           size="small" pagination={false} rowKey="key" columns={columns} dataSource={rowsData} scroll={{ x: true }} style={{ background: 'var(--surface)' }}
           summary={() => {
+            // 一款用多塊布時會在每塊布各算一次，所以總計不能把各列加起來（會重複），
+            // 直接從款式本身算才是實際的款數
+            const colFallback = colIsStatus ? '未上傳' : '未分類';
             const totalByCol = {};
-            usedCols.forEach((c) => { totalByCol[c] = rowsData.reduce((sum, r) => sum + (r.byCol[c] || []).length, 0); });
-            const grandTotal = rowsData.reduce((sum, r) => sum + r.total, 0);
+            usedCols.forEach((c) => {
+              totalByCol[c] = filtered.filter((r) => (colKeyFn(r) || colFallback) === c).length;
+            });
+            const grandTotal = filtered.length;
             const doneTotal = filtered.filter((r) => ['已上傳', '已完成'].includes(statusLabel(effStatus(r)))).length;
             const grandPct = grandTotal ? Math.round((doneTotal / grandTotal) * 100) : 0;
             return (
