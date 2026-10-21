@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Tabs, Tag, Empty, Table, Space, Select, Button, Modal, Input, Checkbox, message } from 'antd';
+import { Tabs, Tag, Empty, Table, Space, Select, Button, Modal, Input, message } from 'antd';
 import { sb } from '../supabase';
 
 // 樣品狀態下拉選項（與業務 Excel 的下拉一致）
@@ -125,7 +125,6 @@ function StatusCell({ r, value, editable, onChange, showSeason }) {
 export default function TrackerPage({ data }) {
   const saved = loadSavedFilters();
   const [view, setView] = useState(saved.view || 'styles');
-  const [seasonTab, setSeasonTab] = useState(saved.seasonTab ?? null);
   // 篩選／排序（作用於目前季度，記在瀏覽器 localStorage，重整/切頁不會不見）
   const [seasonFilter, setSeasonFilter] = useState(saved.seasonFilter || []);
   const [brandFilter, setBrandFilter] = useState(saved.brandFilter || []);
@@ -134,14 +133,13 @@ export default function TrackerPage({ data }) {
   const [dueFilter, setDueFilter] = useState(saved.dueFilter || []);
   const [sortKey, setSortKey] = useState(saved.sortKey || 'default');
   const [search, setSearch] = useState(saved.search || '');
-  const [crossSeason, setCrossSeason] = useState(saved.crossSeason || false);
   const [summaryGroupBy, setSummaryGroupBy] = useState(saved.summaryGroupBy || 'season');
   const [summaryColBy, setSummaryColBy] = useState(saved.summaryColBy || 'status');
   useEffect(() => {
     localStorage.setItem(TRACKER_FILTERS_KEY, JSON.stringify({
-      view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy, summaryColBy,
+      view, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, summaryGroupBy, summaryColBy,
     }));
-  }, [view, seasonTab, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, crossSeason, summaryGroupBy, summaryColBy]);
+  }, [view, seasonFilter, brandFilter, statusFilter, fabricFilter, dueFilter, sortKey, search, summaryGroupBy, summaryColBy]);
   const rows = data.sampleRequests || [];
 
   const allBrands = useMemo(
@@ -197,10 +195,6 @@ export default function TrackerPage({ data }) {
     return <Empty description="目前尚無送樣資料。請先跑 sample-requests-schema.sql 建表，再用「匯入開發追蹤.bat」灌入。" />;
   }
 
-  // 款式進度的季度分頁清單跟著季度篩選走（避免兩個季度選擇器衝突）
-  const visibleSeasons = seasonFilter.length ? seasons.filter((s) => seasonFilter.includes(s)) : seasons;
-  const activeSeason = seasonTab && visibleSeasons.includes(seasonTab) ? seasonTab : visibleSeasons[0];
-
   const sortList = (arr) => {
     if (sortKey === 'style') return [...arr].sort((a, b) => String(a.style_no || '').localeCompare(String(b.style_no || '')));
     if (sortKey === 'style_desc') return [...arr].sort((a, b) => String(b.style_no || '').localeCompare(String(a.style_no || '')));
@@ -224,7 +218,7 @@ export default function TrackerPage({ data }) {
         <div style={{ fontWeight: 700, color: 'var(--brand)', margin: '10px 0 4px' }}>{brand}　<Tag>{g[brand].length}</Tag></div>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 14px' }}>
           {sortList(g[brand]).map((r) => (
-            <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} showSeason={crossSeason} />
+            <StatusCell key={r.id} r={r} value={effStatus(r)} editable={loggedIn} onChange={saveStatus} showSeason={new Set(applyFilters(rows).map((x) => x.season)).size > 1} />
           ))}
         </div>
       </div>
@@ -235,7 +229,7 @@ export default function TrackerPage({ data }) {
     <Space wrap style={{ margin: '12px 0' }}>
       <Select mode="multiple" allowClear placeholder="季度（全部）" value={seasonFilter} onChange={setSeasonFilter}
         style={{ minWidth: 180 }} maxTagCount="responsive"
-        options={seasons.map((s) => ({ value: s, label: s }))} />
+        options={[...seasons].reverse().map((s) => ({ value: s, label: `${s}（${bySeason[s].length}）` }))} />
       <Select mode="multiple" allowClear placeholder="品牌（全部）" value={brandFilter} onChange={setBrandFilter}
         style={{ minWidth: 180 }} maxTagCount="responsive"
         options={allBrands.map((b) => ({ value: b, label: b }))} />
@@ -251,32 +245,22 @@ export default function TrackerPage({ data }) {
       <Select value={sortOptions.some((o) => o.value === sortKey) ? sortKey : 'default'}
         onChange={setSortKey} style={{ minWidth: 140 }} options={sortOptions} />
       <Input allowClear placeholder="搜尋款號 / 品名 / 布料" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 220 }} />
-      {view === 'styles' && <Checkbox checked={crossSeason} onChange={(e) => setCrossSeason(e.target.checked)}>跨所有季度</Checkbox>}
     </Space>
   );
 
   const styles = (
     <div>
-      {!crossSeason && (
-        <Tabs size="small" activeKey={activeSeason} onChange={setSeasonTab}
-          items={visibleSeasons.map((s) => ({ key: s, label: `📅 ${s}（${bySeason[s].length}）` }))} />
-      )}
       {(() => {
-        if (crossSeason) {
-          const list = applyFilters(rows);
-          if (!list.length) return <Empty description="沒有符合條件的款式" />;
-          const { g, order } = groupBy(list, (r) => r.season, '未分類');
-          order.sort(seasonCmp);
-          return order.map((s) => (
-            <div key={s} style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, margin: '6px 0' }}>📅 {s}　<Tag>{g[s].length}</Tag></div>
-              {renderBrandGroups(g[s])}
-            </div>
-          ));
-        }
-        const list = applyFilters(bySeason[activeSeason] || []);
-        if (!list.length) return <Empty description="這一季沒有符合條件的款式" />;
-        return renderBrandGroups(list);
+        const list = applyFilters(rows);
+        if (!list.length) return <Empty description="沒有符合條件的款式" />;
+        const { g, order } = groupBy(list, (r) => r.season, '未分類');
+        order.sort(seasonCmp).reverse(); // 新季度在最上面，不用往後翻
+        return order.map((sn) => (
+          <div key={sn} style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, margin: '6px 0' }}>📅 {sn}　<Tag>{g[sn].length}</Tag></div>
+            {renderBrandGroups(g[sn])}
+          </div>
+        ));
       })()}
     </div>
   );
