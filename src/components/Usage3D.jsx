@@ -16,10 +16,12 @@ const pct = (n, d) => (d ? Math.round((n / d) * 1000) / 10 : 0);
 // 多條線／多組柱用的色票（Tableau 10 的子集，淺色深色底都看得清楚）；單一系列用品牌綠
 const PALETTE = ['#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#b07aa1', '#76b7b2', '#edc948', '#9c755f'];
 
+// 數值是 0 就當作沒有資料：圖上不畫柱子／點、不標 0，表格顯示「–」
+const nz = (v) => (v ? v : null);
 const METRICS = {
-  pct: { label: '3D 占比（%）', val: (c) => (c.total ? pct(c.d3, c.total) : null), fmt: (v) => `${v}%` },
-  d3: { label: '3D 款數', val: (c) => (c.total ? c.d3 : null), fmt: (v) => String(v) },
-  real: { label: '實樣款數', val: (c) => (c.total ? c.total - c.d3 : null), fmt: (v) => String(v) },
+  pct: { label: '3D 占比（%）', val: (c) => (c.total ? nz(pct(c.d3, c.total)) : null), fmt: (v) => `${v}%` },
+  d3: { label: '3D 款數', val: (c) => (c.total ? nz(c.d3) : null), fmt: (v) => String(v) },
+  real: { label: '實樣款數', val: (c) => (c.total ? nz(c.total - c.d3) : null), fmt: (v) => String(v) },
   total: { label: '款數（款×階段）', val: (c) => (c.total ? c.total : null), fmt: (v) => String(v) },
 };
 const DIMS = { season: '季度', brand: '品牌', stage: '階段' };
