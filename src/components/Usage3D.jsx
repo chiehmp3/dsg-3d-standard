@@ -12,7 +12,6 @@ const seasonCmp = (a, b) => {
   return A[0] - B[0] || A[1] - B[1] || String(a).localeCompare(String(b));
 };
 const pct = (n, d) => (d ? Math.round((n / d) * 1000) / 10 : 0);
-const SMALL_N = 5; // 款數少於這個數的格子，百分比沒有參考價值，圖上淡化
 
 // 多條線／多組柱用的色票（Tableau 10 的子集，淺色深色底都看得清楚）；單一系列用品牌綠
 const PALETTE = ['#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#b07aa1', '#76b7b2', '#edc948', '#9c755f'];
@@ -65,7 +64,6 @@ function Chart({ type, xs, series, cell, metric, width }) {
     ? { top: 100, ticks: [0, 25, 50, 75, 100] }
     : niceTicks(Math.max(0, ...values));
 
-  const faded = (c) => metric === 'pct' && c.total < SMALL_N;
   const tip = (x, s, c) => `${multi ? `${s.label}・` : ''}${x.label}：${c.d3} / ${c.total} 款 3D（${c.total ? pct(c.d3, c.total) : 0}%）`;
 
   // ── 橫條 ──
@@ -94,7 +92,7 @@ function Chart({ type, xs, series, cell, metric, width }) {
                 if (v == null) return null;
                 const y = y0 + j * (barH + gap);
                 return (
-                  <g key={s.key} opacity={faded(c) ? 0.4 : 1}>
+                  <g key={s.key}>
                     <title>{tip(x, s, c)}</title>
                     <rect x={m.l} y={y} width={Math.max(sx(v) - m.l, 1)} height={barH} rx={3} style={{ fill: s.color }} />
                     <text x={sx(v) + 6} y={y + barH / 2 + 4} style={{ ...AXIS, fill: 'var(--text)' }}>{M.fmt(v)}</text>
@@ -147,7 +145,7 @@ function Chart({ type, xs, series, cell, metric, width }) {
                 return (
                   <g key={x.key}>
                     <title>{tip(x, s, c)}</title>
-                    <circle cx={cx(i)} cy={y(v)} r={4.5} strokeWidth={2} style={{ stroke: s.color, fill: faded(c) ? 'var(--surface)' : s.color }} />
+                    <circle cx={cx(i)} cy={y(v)} r={4.5} strokeWidth={2} style={{ stroke: s.color, fill: s.color }} />
                     {!multi && <text x={cx(i)} y={y(v) - 10} textAnchor="middle" style={{ ...AXIS, fill: 'var(--text)' }}>{M.fmt(v)}</text>}
                   </g>
                 );
@@ -170,7 +168,7 @@ function Chart({ type, xs, series, cell, metric, width }) {
         if (v == null) return null;
         const bx = cx(i) - groupW / 2 + j * barW;
         return (
-          <g key={`${x.key}${s.key}`} opacity={faded(c) ? 0.4 : 1}>
+          <g key={`${x.key}${s.key}`}>
             <title>{tip(x, s, c)}</title>
             <rect x={bx + 1} y={y(v)} width={Math.max(barW - 2, 1)} height={Math.max(m.t + plotH - y(v), 1)} rx={3} style={{ fill: s.color }} />
             {barW >= 26 && <text x={bx + barW / 2} y={y(v) - 5} textAnchor="middle" style={{ ...AXIS, fill: 'var(--text)' }}>{M.fmt(v)}</text>}
@@ -341,7 +339,7 @@ export default function Usage3D({ data }) {
             <Chart type={chart} xs={model.xs} series={model.series} cell={model.cell} metric={metric} width={boxW} />
           ) : <Empty description="沒有符合條件的資料" />}
         </div>
-        {metric === 'pct' && <div className="page-desc" style={{ fontSize: 12, marginTop: 6 }}>淡色（空心點）＝該格款數少於 {SMALL_N} 款，占比僅供參考。滑鼠移上去看款數。</div>}
+        <div className="page-desc" style={{ fontSize: 12, marginTop: 6 }}>滑鼠移到柱子或點上可看款數。</div>
       </div>
 
       <div className="u3d-table">
