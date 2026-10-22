@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Tabs, Tag, Empty, Table, Space, Select, Button, Modal, Input, message } from 'antd';
 import { sb } from '../supabase';
+import Usage3D from '../components/Usage3D';
 
 // 樣品狀態下拉選項（與業務 Excel 的下拉一致）
 const STATUS_OPTIONS = ['待進單', '已進單', '待製版', '待測布', '待進行', '進行中', '待業務確認', '待細節', '已完成', '已上傳', '製版澄清中', '待開發處內部澄清', '待完成檢查', '製版中', '退回版師'];
@@ -398,9 +399,10 @@ export default function TrackerPage({ data }) {
         { key: 'styles', label: '📋 款式進度' },
         { key: 'summary', label: '📊 季度摘要' },
         { key: 'todo', label: '⏰ 待辦' },
+        { key: 'usage3d', label: '🧊 3D 占比' },
       ]} />
-      {filterBar}
-      {view === 'styles' ? styles : view === 'summary' ? summary : todo}
+      {view !== 'usage3d' && filterBar}
+      {view === 'styles' ? styles : view === 'summary' ? summary : view === 'usage3d' ? <Usage3D data={data} /> : todo}
 
       <Modal title="登入以編輯狀態" open={loginOpen} onOk={doLogin} onCancel={() => setLoginOpen(false)} okText="登入" cancelText="取消">
         <Space direction="vertical" style={{ width: '100%' }}>
