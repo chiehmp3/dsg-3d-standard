@@ -182,7 +182,10 @@ function Chart({ type, xs, series, cell, metric, width }) {
 }
 
 // ───────── 頁面 ─────────
-const PREF_KEY = 'dsg-usage3d-prefs';
+// v2：預設季度改為只看 SP27／FA27，換新 key 讓舊的瀏覽器設定不會蓋掉新預設
+const PREF_KEY = 'dsg-usage3d-prefs-v2';
+// 業務總表只收未結案的單，舊季度只剩零星幾款，占比沒有參考價值，所以預設只看這兩季（仍可在「季度」下拉選回來）
+const DEFAULT_SEASONS = ['SP27', 'FA27'];
 const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || {}; } catch { return {}; } };
 
 export default function Usage3D({ data }) {
@@ -194,7 +197,11 @@ export default function Usage3D({ data }) {
   const [splitDim, setSplitDim] = useState(saved.splitDim || 'none'); // none / season / brand / stage
   // 預設只看 Proto（維持原本的數字）。同一款在不同階段會各算一次，所以多選階段時「款數」是款×階段
   const [stageSel, setStageSel] = useState(saved.stageSel || ['Proto']);
-  const [seasonSel, setSeasonSel] = useState(saved.seasonSel || []);
+  const [seasonSel, setSeasonSel] = useState(() => {
+    if (saved.seasonSel) return saved.seasonSel;
+    const have = DEFAULT_SEASONS.filter((s) => rows.some((r) => r.season === s));
+    return have; // 資料裡一個都沒有時是空陣列＝全部，不會變成空畫面
+  });
   const [brandSel, setBrandSel] = useState(saved.brandSel || []);
   useEffect(() => {
     try { localStorage.setItem(PREF_KEY, JSON.stringify({ chart, metric, xDim, splitDim, seasonSel, brandSel, stageSel })); } catch { /* 無痕模式等情況存不了就算了 */ }
@@ -296,6 +303,11 @@ export default function Usage3D({ data }) {
 
       {stageSel.length !== 1 && stageSel.length !== 0 && <div className="page-desc" style={{ fontSize: 12, marginBottom: 8 }}>目前合併了 {stageSel.length} 個階段，卡片上的款數是「款×階段」。</div>}
       {stageSel.length === 0 && <div className="page-desc" style={{ fontSize: 12, marginBottom: 8 }}>目前包含全部階段，卡片上的款數是「款×階段」。</div>}
+      {seasonSel.length > 0 && seasonSel.length === DEFAULT_SEASONS.length && DEFAULT_SEASONS.every((s) => seasonSel.includes(s)) && (
+        <div className="page-desc" style={{ fontSize: 12, marginBottom: 8 }}>
+          預設只顯示 {DEFAULT_SEASONS.join('、')}：業務總表只收未結案的單，更早的季度資料不完整、占比僅供參考。要看其他季度請在下方「季度」選。
+        </div>
+      )}
       <div className="u3d-kpis">
         {kpi.map((k) => (
           <div key={k.s} className="u3d-kpi">
