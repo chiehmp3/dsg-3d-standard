@@ -21,9 +21,12 @@ const METRICS = {
   pct: { label: '3D 占比（%）', val: (c) => (c.total ? pct(c.d3, c.total) : null), fmt: (v) => `${v}%` },
   d3: { label: '3D 款數', val: (c) => (c.total ? c.d3 : null), fmt: (v) => String(v) },
   real: { label: '實樣款數', val: (c) => (c.total ? c.total - c.d3 : null), fmt: (v) => String(v) },
-  total: { label: 'Proto 款數', val: (c) => (c.total ? c.total : null), fmt: (v) => String(v) },
+  total: { label: '款數（款×階段）', val: (c) => (c.total ? c.total : null), fmt: (v) => String(v) },
 };
-const DIMS = { season: '季度', brand: '品牌' };
+const DIMS = { season: '季度', brand: '品牌', stage: '階段' };
+// 階段排序依開發流程：Mock-up → Proto → Fit → Jump Size → Size Set → PP → TOP → Wear Test
+const STAGE_ORDER = ['Mock-up', 'Proto', 'Fit', 'Jump Size', 'Size Set', 'PP', 'TOP', 'Wear Test'];
+const stageRank = (s) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 99 : i; };
 
 function niceTicks(max) {
   const raw = Math.max(max, 1) / 4;
@@ -181,23 +184,26 @@ const PREF_KEY = 'dsg-usage3d-prefs';
 const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || {}; } catch { return {}; } };
 
 export default function Usage3D({ data }) {
-  const rows = data.proto3d || [];
+  const rows = data.stage3d || [];
   const saved = useMemo(loadPrefs, []);
   const [chart, setChart] = useState(saved.chart || 'column');   // column / bar / line
   const [metric, setMetric] = useState(saved.metric || 'pct');
   const [xDim, setXDim] = useState(saved.xDim || 'season');
-  const [splitDim, setSplitDim] = useState(saved.splitDim || 'none'); // none / season / brand
+  const [splitDim, setSplitDim] = useState(saved.splitDim || 'none'); // none / season / brand / stage
+  // 預設只看 Proto（維持原本的數字）。同一款在不同階段會各算一次，所以多選階段時「款數」是款×階段
+  const [stageSel, setStageSel] = useState(saved.stageSel || ['Proto']);
   const [seasonSel, setSeasonSel] = useState(saved.seasonSel || []);
   const [brandSel, setBrandSel] = useState(saved.brandSel || []);
   useEffect(() => {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ chart, metric, xDim, splitDim, seasonSel, brandSel })); } catch { /* 無痕模式等情況存不了就算了 */ }
-  }, [chart, metric, xDim, splitDim, seasonSel, brandSel]);
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ chart, metric, xDim, splitDim, seasonSel, brandSel, stageSel })); } catch { /* 無痕模式等情況存不了就算了 */ }
+  }, [chart, metric, xDim, splitDim, seasonSel, brandSel, stageSel]);
 
   const [boxRef, boxW] = useWidth();
 
   const seasonOf = (r) => r.season || '未分類';
   const brandOf = (r) => r.brand || '未填';
-  const dimOf = { season: seasonOf, brand: brandOf };
+  const stageOf = (r) => r.stage || '未填';
+  const dimOf = { season: seasonOf, brand: brandOf, stage: stageOf };
 
   const allSeasons = useMemo(() => [...new Set(rows.map(seasonOf))].sort((a, b) => seasonCmp(b, a)), [rows]);
   const allBrands = useMemo(() => {
@@ -205,9 +211,12 @@ export default function Usage3D({ data }) {
     return Object.keys(n).sort((a, b) => n[b] - n[a]);
   }, [rows]);
 
+  const allStages = useMemo(() => [...new Set(rows.map(stageOf))].sort((a, b) => stageRank(a) - stageRank(b)), [rows]);
   const filtered = useMemo(
-    () => rows.filter((r) => (!seasonSel.length || seasonSel.includes(seasonOf(r))) && (!brandSel.length || brandSel.includes(brandOf(r)))),
-    [rows, seasonSel, brandSel],
+    () => rows.filter((r) => (!seasonSel.length || seasonSel.includes(seasonOf(r)))
+      && (!brandSel.length || brandSel.includes(brandOf(r)))
+      && (!stageSel.length || stageSel.includes(stageOf(r)))),
+    [rows, seasonSel, brandSel, stageSel],
   );
 
   // 橫軸與拆分不能是同一個維度
@@ -221,16 +230,20 @@ export default function Usage3D({ data }) {
       bump(cellMap, `${x}||${s}`, r); bump(xTot, x, r); bump(sTot, s, r);
       grand.total += 1; grand.d3 += r.has_3d ? 1 : 0;
     });
-    const order = (dim, keys, desc) => (dim === 'season'
-      ? [...keys].sort((a, b) => (desc ? seasonCmp(b, a) : seasonCmp(a, b)))
-      : [...keys].sort((a, b) => (xTotOrBrand(dim, a) < xTotOrBrand(dim, b) ? 1 : -1)));
     const brandTotal = {}; filtered.forEach((r) => { brandTotal[brandOf(r)] = (brandTotal[brandOf(r)] || 0) + 1; });
-    function xTotOrBrand(dim, k) { return dim === 'brand' ? brandTotal[k] || 0 : 0; }
+    const order = (dim, keys, desc) => {
+      const cmp = {
+        season: (a, b) => seasonCmp(a, b),
+        stage: (a, b) => stageRank(a) - stageRank(b),
+        brand: (a, b) => (brandTotal[b] || 0) - (brandTotal[a] || 0),
+      }[dim];
+      return [...keys].sort((a, b) => (desc && dim !== 'brand' ? cmp(b, a) : cmp(a, b)));
+    };
     const desc = chart === 'bar'; // 橫條：新季度在上；直條／折線：時間由左到右
     const xs = order(xDim, Object.keys(xTot), desc).map((k) => ({ key: k, label: k }));
     const sKeys = split === 'none' ? ['__all'] : order(split, Object.keys(sTot), false);
     const series = sKeys.map((k, i) => ({
-      key: k, label: k === '__all' ? '全品牌／全季度' : k,
+      key: k, label: k === '__all' ? '合計' : k,
       color: sKeys.length === 1 ? 'var(--brand)' : PALETTE[i % PALETTE.length],
     }));
     const cell = (x, s) => cellMap[`${x}||${s}`] || { d3: 0, total: 0 };
@@ -238,7 +251,7 @@ export default function Usage3D({ data }) {
   }, [filtered, xDim, split, chart]);
 
   if (!rows.length) {
-    return <Empty description="還沒有 3D 占比資料。請先在 Supabase 跑 proto-3d-usage.sql 建表，再雙擊「匯入3D占比.bat」灌資料。" />;
+    return <Empty description="還沒有 3D 占比資料。請先在 Supabase 跑 stage-3d-usage.sql 建表，再雙擊「匯入3D占比.bat」灌資料。" />;
   }
 
   const M = METRICS[metric];
@@ -275,10 +288,12 @@ export default function Usage3D({ data }) {
   return (
     <div>
       <p className="page-desc" style={{ margin: '12px 0' }}>
-        只算 Proto 階段，以「款」為單位：該款任一筆 Proto 有做 3D（含同時做實樣）就算 3D。
+        以「款」為單位、各階段各自計算：該款在該階段任一筆申請有做 3D（含同時做實樣）就算 3D。同一款有做 Proto 又做 Fit 會各算一次，所以同時選多個階段時，款數是「款×階段」。
         資料更新：{updatedAt ? new Date(updatedAt).toLocaleString() : '—'}。
       </p>
 
+      {stageSel.length !== 1 && stageSel.length !== 0 && <div className="page-desc" style={{ fontSize: 12, marginBottom: 8 }}>目前合併了 {stageSel.length} 個階段，卡片上的款數是「款×階段」。</div>}
+      {stageSel.length === 0 && <div className="page-desc" style={{ fontSize: 12, marginBottom: 8 }}>目前包含全部階段，卡片上的款數是「款×階段」。</div>}
       <div className="u3d-kpis">
         {kpi.map((k) => (
           <div key={k.s} className="u3d-kpi">
@@ -304,6 +319,8 @@ export default function Usage3D({ data }) {
           options={[{ value: 'none', label: '不拆分' }, ...Object.entries(DIMS).filter(([v]) => v !== xDim).map(([value, label]) => ({ value, label: `依${label}` }))]} /></label>
         <label>季度<Select mode="multiple" allowClear placeholder="全部" value={seasonSel} onChange={setSeasonSel}
           style={{ minWidth: 150 }} maxTagCount="responsive" options={allSeasons.map((s) => ({ value: s, label: s }))} /></label>
+        <label>階段<Select mode="multiple" allowClear placeholder="全部" value={stageSel} onChange={setStageSel}
+          style={{ minWidth: 150 }} maxTagCount="responsive" options={allStages.map((g) => ({ value: g, label: g }))} /></label>
         <label>品牌<Select mode="multiple" allowClear placeholder="全部" value={brandSel} onChange={setBrandSel}
           style={{ minWidth: 150 }} maxTagCount="responsive" options={allBrands.map((b) => ({ value: b, label: b }))} /></label>
         <Segmented value={chart} onChange={setChart}
