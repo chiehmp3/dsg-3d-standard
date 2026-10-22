@@ -24,8 +24,10 @@ const METRICS = {
   total: { label: '款數（款×階段）', val: (c) => (c.total ? c.total : null), fmt: (v) => String(v) },
 };
 const DIMS = { season: '季度', brand: '品牌', stage: '階段' };
-// 階段排序依開發流程：Mock-up → Proto → Fit → Jump Size → Size Set → PP → TOP → Wear Test
-const STAGE_ORDER = ['Mock-up', 'Proto', 'Fit', 'Jump Size', 'Size Set', 'PP', 'TOP', 'Wear Test'];
+// 階段排序依開發流程：Mock-up → Proto → Fit → JSS → PP → TOP → Wear Test
+const STAGE_ORDER = ['Mock-up', 'Proto', 'Fit', 'JSS', 'PP', 'TOP', 'Wear Test'];
+// Jump Size、Size Set 都是 JSS。匯入腳本已合併；這裡再保險一次，舊資料也不會分兩列
+const STAGE_ALIAS = { 'Jump Size': 'JSS', 'Size Set': 'JSS' };
 const stageRank = (s) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 99 : i; };
 
 function niceTicks(max) {
@@ -202,7 +204,7 @@ export default function Usage3D({ data }) {
 
   const seasonOf = (r) => r.season || '未分類';
   const brandOf = (r) => r.brand || '未填';
-  const stageOf = (r) => r.stage || '未填';
+  const stageOf = (r) => STAGE_ALIAS[r.stage] || r.stage || '未填';
   const dimOf = { season: seasonOf, brand: brandOf, stage: stageOf };
 
   const allSeasons = useMemo(() => [...new Set(rows.map(seasonOf))].sort((a, b) => seasonCmp(b, a)), [rows]);
